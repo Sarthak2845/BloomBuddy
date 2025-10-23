@@ -1,113 +1,72 @@
-// app/register.tsx
-import { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet } from 'react-native';
-import { Link, useRouter } from 'expo-router';
-import Colors from '../../constants/Colors';
+import React from 'react';
+import { View, StyleSheet, Pressable } from 'react-native';
+import { ThemedText } from '../../components/themed-text';
+import { ThemedView } from '../../components/themed-view';
+import RegisterForm from '../../components/auth/RegisterForm';
+import { Link } from 'expo-router';
 
 export default function RegisterScreen() {
-  const router = useRouter();
-  const [email, setEmail] = useState('');
-  const [name, setName] = useState('');
-  const [password, setPassword] = useState('');
-
-  const handleRegister = () => {
-    // Replace with your registration logic
-    router.push('/home');
-  };
-
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Create Account ✨</Text>
-      <Text style={styles.subtitle}>Join us today!</Text>
+    <ThemedView style={styles.container}>
+      <View style={styles.content}>
+        <View style={styles.header}>
+          <ThemedText style={styles.title}>Join BloomBuddy</ThemedText>
+          <ThemedText style={styles.subtitle}>Create your account to start growing</ThemedText>
+        </View>
 
-      <TextInput
-        placeholder="Full Name"
-        placeholderTextColor={Colors.gray}
-        style={styles.input}
-        value={name}
-        onChangeText={setName}
-      />
+        <RegisterForm />
 
-      <TextInput
-        placeholder="Email"
-        placeholderTextColor={Colors.gray}
-        style={styles.input}
-        value={email}
-        onChangeText={setEmail}
-      />
-
-      <TextInput
-        placeholder="Password"
-        placeholderTextColor={Colors.gray}
-        style={styles.input}
-        secureTextEntry
-        value={password}
-        onChangeText={setPassword}
-      />
-
-      <TouchableOpacity style={styles.button} onPress={handleRegister}>
-        <Text style={styles.buttonText}>Sign Up</Text>
-      </TouchableOpacity>
-
-      <View style={styles.footer}>
-        <Text style={styles.footerText}>Already have an account? </Text>
-        <Link href="/auth/login" style={styles.link}>Login</Link>
+        <View style={styles.footer}>
+          <ThemedText style={styles.footerText}>Already have an account? </ThemedText>
+          <Link href="/auth/login" asChild>
+            <Pressable>
+              <ThemedText style={styles.link}>Sign In</ThemedText>
+            </Pressable>
+          </Link>
+        </View>
       </View>
-    </View>
+    </ThemedView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.background,
+    backgroundColor: '#f0fdf4',
+  },
+  content: {
+    flex: 1,
+    padding: 24,
     justifyContent: 'center',
-    paddingHorizontal: 25,
+    maxWidth: 400,
+    alignSelf: 'center',
+    width: '100%',
+  },
+  header: {
+    alignItems: 'center',
+    marginBottom: 40,
   },
   title: {
-    fontSize: 28,
+    fontSize: 32,
     fontWeight: '700',
-    color: Colors.text,
-    marginBottom: 5,
+    color: '#064e3b',
+    marginBottom: 8,
   },
   subtitle: {
     fontSize: 16,
-    color: Colors.gray,
-    marginBottom: 30,
-  },
-  input: {
-    height: 50,
-    borderColor: Colors.border,
-    borderWidth: 1,
-    borderRadius: 12,
-    paddingHorizontal: 15,
-    marginBottom: 15,
-    backgroundColor: Colors.lightGray,
-    color: Colors.text,
-  },
-  button: {
-    backgroundColor: Colors.primary,
-    height: 50,
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginTop: 10,
-  },
-  buttonText: {
-    color: '#FFF',
-    fontSize: 16,
-    fontWeight: '600',
+    color: '#6b7280',
+    textAlign: 'center',
   },
   footer: {
     flexDirection: 'row',
     justifyContent: 'center',
-    marginTop: 20,
+    marginTop: 24,
   },
   footerText: {
-    color: Colors.gray,
+    color: '#6b7280',
   },
   link: {
-    color: Colors.primary,
+    color: '#059669',
     fontWeight: '600',
   },
 });
