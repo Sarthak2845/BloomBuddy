@@ -1,104 +1,72 @@
-// app/login.tsx
-import { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet } from 'react-native';
-import { Link, useRouter } from 'expo-router';
-import Colors from '../../constants/Colors';
+import React from 'react';
+import { View, StyleSheet, Pressable } from 'react-native';
+import { ThemedText } from '../../components/themed-text';
+import { ThemedView } from '../../components/themed-view';
+import LoginForm from '../../components/auth/LoginForm';
+import { Link } from 'expo-router';
 
 export default function LoginScreen() {
-  const router = useRouter();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-
-  const handleLogin = () => {
-    // Replace with your login logic (API call)
-    router.push('/home');
-  };
-
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Welcome Back 👋</Text>
-      <Text style={styles.subtitle}>Login to your account</Text>
+    <ThemedView style={styles.container}>
+      <View style={styles.content}>
+        <View style={styles.header}>
+          <ThemedText style={styles.title}>Welcome Back</ThemedText>
+          <ThemedText style={styles.subtitle}>Sign in to continue your plant journey</ThemedText>
+        </View>
 
-      <TextInput
-        placeholder="Email"
-        placeholderTextColor={Colors.gray}
-        style={styles.input}
-        value={email}
-        onChangeText={setEmail}
-      />
+        <LoginForm />
 
-      <TextInput
-        placeholder="Password"
-        placeholderTextColor={Colors.gray}
-        style={styles.input}
-        secureTextEntry
-        value={password}
-        onChangeText={setPassword}
-      />
-
-      <TouchableOpacity style={styles.button} onPress={handleLogin}>
-        <Text style={styles.buttonText}>Sign In</Text>
-      </TouchableOpacity>
-
-      <View style={styles.footer}>
-        <Text style={styles.footerText}>Don't have an account? </Text>
-        <Link href="/auth/register" style={styles.link}>Register</Link>
+        <View style={styles.footer}>
+          <ThemedText style={styles.footerText}>Don't have an account? </ThemedText>
+          <Link href="/auth/register" asChild>
+            <Pressable>
+              <ThemedText style={styles.link}>Sign Up</ThemedText>
+            </Pressable>
+          </Link>
+        </View>
       </View>
-    </View>
+    </ThemedView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.background,
+    backgroundColor: '#f0fdf4',
+  },
+  content: {
+    flex: 1,
+    padding: 24,
     justifyContent: 'center',
-    paddingHorizontal: 25,
+    maxWidth: 400,
+    alignSelf: 'center',
+    width: '100%',
+  },
+  header: {
+    alignItems: 'center',
+    marginBottom: 40,
   },
   title: {
-    fontSize: 28,
+    fontSize: 32,
     fontWeight: '700',
-    color: Colors.text,
-    marginBottom: 5,
+    color: '#064e3b',
+    marginBottom: 8,
   },
   subtitle: {
     fontSize: 16,
-    color: Colors.gray,
-    marginBottom: 30,
-  },
-  input: {
-    height: 50,
-    borderColor: Colors.border,
-    borderWidth: 1,
-    borderRadius: 12,
-    paddingHorizontal: 15,
-    marginBottom: 15,
-    backgroundColor: Colors.lightGray,
-    color: Colors.text,
-  },
-  button: {
-    backgroundColor: Colors.primary,
-    height: 50,
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginTop: 10,
-  },
-  buttonText: {
-    color: '#FFF',
-    fontSize: 16,
-    fontWeight: '600',
+    color: '#6b7280',
+    textAlign: 'center',
   },
   footer: {
     flexDirection: 'row',
     justifyContent: 'center',
-    marginTop: 20,
+    marginTop: 24,
   },
   footerText: {
-    color: Colors.gray,
+    color: '#6b7280',
   },
   link: {
-    color: Colors.primary,
+    color: '#059669',
     fontWeight: '600',
   },
 });
