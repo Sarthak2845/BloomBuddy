@@ -1,50 +1,147 @@
-# Welcome to your Expo app 👋
+# 🌱 BloomBuddy
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+Your personal plant care companion with AI-powered plant identification and care recommendations.
 
-## Get started
+## ✨ Features
 
-1. Install dependencies
+- **Smart Plant Identification** - AI-powered plant recognition using Pl@ntNet API
+- **Personalized Care Tips** - Get tailored watering, lighting, and care advice
+- **Growth Tracking** - Monitor your plants with photo journals
+- **Plant Health Analysis** - Instant diagnosis and treatment recommendations
+- **Community Features** - Connect with fellow plant parents
+- **Authentication** - Secure login with email/password and Google Sign-In
 
+## 🚀 Quick Start
+
+### Prerequisites
+
+- Node.js (v20+)
+- Expo CLI
+- Firebase project
+
+### Installation
+
+1. **Clone the repository**
+   ```bash
+   git clone <your-repo-url>
+   cd BloomBuddy/frontend/BloomFrontend
+   ```
+
+2. **Install dependencies**
    ```bash
    npm install
    ```
 
-2. Start the app
-
+3. **Setup environment variables**
    ```bash
-   npx expo start
+   cp .env.example .env
+   ```
+   
+   Add your Firebase configuration to `.env`:
+   ```env
+   EXPO_PUBLIC_FIREBASE_API_KEY=your-api-key
+   EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN=your-project.firebaseapp.com
+   EXPO_PUBLIC_FIREBASE_PROJECT_ID=your-project-id
+   EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET=your-project.appspot.com
+   EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=123456789
+   EXPO_PUBLIC_FIREBASE_APP_ID=your-app-id
+   EXPO_PUBLIC_FIREBASE_MEASUREMENT_ID=your-measurement-id
    ```
 
-In the output, you'll find options to open the app in a
+4. **Start the development server**
+   ```bash
+   npm start
+   ```
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+## 🔧 Firebase Setup
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
+### Authentication
+1. Enable Email/Password and Google providers in Firebase Console
+2. Add your domain to authorized domains
 
-## Get a fresh project
-
-When you're ready, run:
-
-```bash
-npm run reset-project
+### Firestore Rules
+```javascript
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+  }
+}
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+## 📱 Plant Analysis Integration
 
-## Learn more
+### Required Packages
+```bash
+npm install axios @google/genai
+expo install expo-image-picker expo-file-system
+```
 
-To learn more about developing your project with Expo, look at the following resources:
+### Usage Example
+```javascript
+import { processPlantPhoto } from '../lib/services/plantService';
+import * as ImagePicker from 'expo-image-picker';
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+const analyzePhoto = async () => {
+  const result = await ImagePicker.launchImageLibraryAsync();
+  if (!result.canceled) {
+    const imageFile = {
+      uri: result.assets[0].uri,
+      name: 'plant.jpg',
+      type: 'image/jpeg'
+    };
+    
+    const metadata = {
+      imageUrl: 'https://your-storage-url.com/image.jpg',
+      uploadedAt: new Date().toISOString(),
+      geolocation: { lat: 34.0, lng: -118.0 }
+    };
+    
+    const analysis = await processPlantPhoto(imageFile, metadata);
+    console.log('Plant analysis:', analysis);
+  }
+};
+```
 
-## Join the community
+## 🏗️ Project Structure
 
-Join our community of developers creating universal apps.
+```
+├── app/                    # Expo Router pages
+│   ├── (tabs)/            # Tab navigation
+│   └── auth/              # Authentication screens
+├── components/            # Reusable components
+│   ├── auth/              # Auth-specific components
+│   └── ui/                # UI components
+├── lib/                   # Core services
+│   ├── firebase/          # Firebase configuration
+│   └── services/          # API services
+└── constants/             # App constants
+```
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+## 🔐 Security
+
+- API keys are stored in environment variables
+- Firebase security rules protect user data
+- Authentication required for all plant operations
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create a feature branch: `git checkout -b feature/amazing-feature`
+3. Commit changes: `git commit -m 'Add amazing feature'`
+4. Push to branch: `git push origin feature/amazing-feature`
+5. Open a Pull Request
+
+## 📄 License
+
+This project is licensed under the MIT License.
+
+## 🆘 Support
+
+For support, email support@bloombuddy.com or join our Discord community.
+
+---
+
+Made with 💚 for plant lovers everywhere
