@@ -2,7 +2,7 @@ import { getFirestore, collection, addDoc, serverTimestamp } from 'firebase/fire
 import { getAuth } from 'firebase/auth';
 import { getAppId } from '../firebase/config';
 import axios, { isAxiosError } from 'axios';
-import { GoogleGenAI } from '@google/genai';
+import {GoogleGenAI } from '@google/genai';
 
 const PLANTNET_IDENTIFY_URL = `https://my-api.plantnet.org/v2/identify/all?api-key=${process.env.PLANTNET_API_KEY}`;
 
