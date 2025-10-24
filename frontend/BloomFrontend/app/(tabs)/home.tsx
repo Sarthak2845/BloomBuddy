@@ -3,6 +3,7 @@ import { View, Text, TextInput, TouchableOpacity, StyleSheet, Image, ActivityInd
 import * as ImagePicker from 'expo-image-picker';
 import Colors from '../../constants/Colors';
 import { useRouter } from 'expo-router';
+import Loading from '@/components/Loading';
 
 export default function HomeScreen() {
   const [flowerName, setFlowerName] = useState('');
@@ -53,7 +54,7 @@ export default function HomeScreen() {
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 60 }}>
-      <Text style={styles.title}>🌸 BloomBuddy</Text>
+      <Text style={styles.title}>BloomBuddy</Text>
       <Text style={styles.subtitle}>Discover the secret life of flowers</Text>
 
       <View style={styles.inputContainer}>
@@ -87,7 +88,7 @@ export default function HomeScreen() {
 
       {loading && (
         <View style={styles.loaderContainer}>
-          <ActivityIndicator size="large" color={Colors.primary} />
+          <Loading />
           <Text style={styles.loadingText}>🌼 Analyzing your flower...</Text>
         </View>
       )}
@@ -105,7 +106,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 34,
     fontWeight: '800',
-    color: Colors.primary,
+    color: Colors.text,
     textAlign: 'center',
   },
   subtitle: {
@@ -153,7 +154,7 @@ const styles = StyleSheet.create({
     width: '80%',
   },
   galleryButton: {
-    backgroundColor: '#FFE5EC',
+    backgroundColor: Colors.success,
     paddingVertical: 12,
     paddingHorizontal: 40,
     borderRadius: 20,

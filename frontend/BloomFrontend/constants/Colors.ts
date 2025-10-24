@@ -8,13 +8,13 @@ export default {
 
 
 
-  primary: '#FF8FAB',     // soft rose pink
-  accent: '#FFD6E0',      // blush pink
-  background: '#FFF5F7',  // off-white floral tone
-  text: '#432818',        // deep earthy brown
-  card: '#FFFFFF',
-  shadow: '#E2A9B5',
-  success: '#A8E6CF',     // minty green for details
+  primary: '#93BFC7',     
+  accent: '#00fdadff',      
+  background: '#ECF4E8',  
+  text: '#432818',        
+  card: '#CBF3BB',
+  shadow: '#ABE7B2',
+  success: '#54c39aff', 
 
 
 };

@@ -4,6 +4,7 @@ import { ThemedText } from '../../components/themed-text';
 import { ThemedView } from '../../components/themed-view';
 import RegisterForm from '../../components/auth/RegisterForm';
 import { Link } from 'expo-router';
+import Colors from '@/constants/Colors';
 
 export default function RegisterScreen() {
   return (
@@ -32,7 +33,7 @@ export default function RegisterScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f0fdf4',
+    backgroundColor: Colors.background,
   },
   content: {
     flex: 1,
@@ -49,7 +50,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 32,
     fontWeight: '700',
-    color: '#064e3b',
+    color: Colors.text,
     marginBottom: 8,
   },
   subtitle: {
