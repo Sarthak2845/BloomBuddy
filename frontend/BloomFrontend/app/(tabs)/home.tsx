@@ -74,6 +74,10 @@ export default function HomeScreen() {
       </View>
 
       <View style={styles.actions}>
+        <TouchableOpacity style={styles.cameraButton} onPress={() => router.push('/(tabs)/analyze')}>
+          <Text style={styles.cameraText}>🌿 Analyze Plant</Text>
+        </TouchableOpacity>
+
         <TouchableOpacity style={styles.cameraButton} onPress={() => handleImagePick(false)}>
           <Text style={styles.cameraText}>📸 Take a Photo</Text>
         </TouchableOpacity>
