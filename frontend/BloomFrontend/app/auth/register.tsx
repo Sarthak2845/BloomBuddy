@@ -9,10 +9,11 @@ import {
   Platform,
   StatusBar,
   Alert,
-  ScrollView
+  ScrollView,
+  Image
 } from 'react-native';
 import { useRouter, Link } from 'expo-router';
-import { MotiView, MotiText } from 'moti';
+import { MotiView} from 'moti';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import Colors from '../../constants/Colors';
@@ -83,7 +84,14 @@ export default function RegisterScreen() {
               transition={{ type: 'spring', damping: 15, delay: 200 }}
               style={styles.header}
             >
-              <Text style={styles.logo}>🌱</Text>
+            <View
+            style={styles.logoContainer}
+            >
+              <Image
+              source={require('../../assets/images/plant.png')}
+              style={styles.logoImg}
+              />
+            </View>
               <Text style={styles.title}>Join BloomBuddy</Text>
               <Text style={styles.subtitle}>Start your plant identification journey</Text>
             </MotiView>
@@ -215,7 +223,7 @@ export default function RegisterScreen() {
                 disabled={loading}
               >
                 <LinearGradient
-                  colors={loading ? [Colors.gray, Colors.gray] : [Colors.accent, '#FF8C42']}
+                  colors={loading ? [Colors.gray, Colors.gray] : [Colors.accent, '#67AE6E']}
                   style={styles.registerGradient}
                 >
                   {loading ? (
@@ -234,26 +242,6 @@ export default function RegisterScreen() {
                   )}
                 </LinearGradient>
               </TouchableOpacity>
-
-              {/* Divider */}
-              <View style={styles.divider}>
-                <View style={styles.dividerLine} />
-                <Text style={styles.dividerText}>OR</Text>
-                <View style={styles.dividerLine} />
-              </View>
-
-              {/* Social Registration */}
-              <View style={styles.socialContainer}>
-                <TouchableOpacity style={styles.socialButton}>
-                  <Ionicons name="logo-google" size={20} color="#DB4437" />
-                  <Text style={styles.socialButtonText}>Google</Text>
-                </TouchableOpacity>
-                
-                <TouchableOpacity style={styles.socialButton}>
-                  <Ionicons name="logo-apple" size={20} color={Colors.text} />
-                  <Text style={styles.socialButtonText}>Apple</Text>
-                </TouchableOpacity>
-              </View>
             </MotiView>
 
             {/* Footer */}
@@ -317,7 +305,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255, 255, 255, 0.95)',
     borderRadius: 24,
     padding: 30,
-    marginBottom: 30,
+    marginBottom: 10,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.2,
@@ -471,4 +459,18 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     textDecorationLine: 'underline',
   },
+      logoContainer: {
+    marginBottom: 5,
+    width: 80,  // reduced from 250
+    height: 80, // reduced from 250
+    borderRadius: 60,
+    padding: 5,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  logoImg: {
+    width: '100%',
+    height: '100%',
+    resizeMode: 'contain', 
+  }
 });

@@ -114,7 +114,7 @@ export default function HomeScreen() {
           <View style={styles.inputContainer}>
             <Ionicons name="search" size={20} color={Colors.textLight} style={styles.searchIcon} />
             <TextInput
-              placeholder="Enter plant name (e.g., Monstera, Rose, Cactus)"
+              placeholder="Enter plant name"
               placeholderTextColor={Colors.textLight}
               style={styles.input}
               value={plantName}

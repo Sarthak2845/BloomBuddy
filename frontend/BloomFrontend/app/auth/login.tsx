@@ -8,10 +8,11 @@ import {
   KeyboardAvoidingView,
   Platform,
   StatusBar,
-  Alert
+  Alert,
+  Image
 } from 'react-native';
 import { useRouter, Link } from 'expo-router';
-import { MotiView, MotiText } from 'moti';
+import { MotiView} from 'moti';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import Colors from '../../constants/Colors';
@@ -56,9 +57,16 @@ export default function LoginScreen() {
             transition={{ type: 'spring', damping: 15, delay: 200 }}
             style={styles.header}
           >
-            <Text style={styles.logo}>🌺</Text>
+            <View
+            style={styles.logoContainer}
+            >
+              <Image
+              source={require('../../assets/images/plant.png')}
+              style={styles.logoImg}
+              />
+            </View>
             <Text style={styles.title}>Welcome Back</Text>
-            <Text style={styles.subtitle}>Sign in to continue your plant journey</Text>
+            <Text style={styles.subtitle}>Sign in to continue your journey</Text>
           </MotiView>
 
           {/* Form */}
@@ -119,7 +127,7 @@ export default function LoginScreen() {
               disabled={loading}
             >
               <LinearGradient
-                colors={loading ? [Colors.gray, Colors.gray] : [Colors.accent, '#FF8C42']}
+                colors={loading ? [Colors.gray, Colors.gray] : [Colors.accent, '#67AE6E']}
                 style={styles.loginGradient}
               >
                 {loading ? (
@@ -146,18 +154,6 @@ export default function LoginScreen() {
               <View style={styles.dividerLine} />
             </View>
 
-            {/* Social Login */}
-            <View style={styles.socialContainer}>
-              <TouchableOpacity style={styles.socialButton}>
-                <Ionicons name="logo-google" size={20} color="#DB4437" />
-                <Text style={styles.socialButtonText}>Google</Text>
-              </TouchableOpacity>
-              
-              <TouchableOpacity style={styles.socialButton}>
-                <Ionicons name="logo-apple" size={20} color={Colors.text} />
-                <Text style={styles.socialButtonText}>Apple</Text>
-              </TouchableOpacity>
-            </View>
           </MotiView>
 
           {/* Footer */}
@@ -167,7 +163,7 @@ export default function LoginScreen() {
             transition={{ type: 'timing', duration: 600, delay: 800 }}
             style={styles.footer}
           >
-            <Text style={styles.footerText}>Don't have an account? </Text>
+            <Text style={styles.footerText}>Don&lsquo;t have an account? </Text>
             <Link href="/auth/register" asChild>
               <TouchableOpacity>
                 <Text style={styles.linkText}>Sign Up</Text>
@@ -233,7 +229,7 @@ const styles = StyleSheet.create({
   },
   subtitle: {
     fontSize: 16,
-    color: 'rgba(255, 255, 255, 0.8)',
+    color: 'rgba(37, 36, 36, 0.8)',
     textAlign: 'center',
   },
   formContainer: {
@@ -315,28 +311,6 @@ const styles = StyleSheet.create({
     color: Colors.textLight,
     fontWeight: '600',
   },
-  socialContainer: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  socialButton: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: Colors.white,
-    borderRadius: 12,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderWidth: 1,
-    borderColor: Colors.border,
-  },
-  socialButtonText: {
-    fontSize: 14,
-    color: Colors.text,
-    fontWeight: '600',
-    marginLeft: 8,
-  },
   footer: {
     flexDirection: 'row',
     justifyContent: 'center',
@@ -359,4 +333,18 @@ const styles = StyleSheet.create({
     fontSize: 20,
     opacity: 0.6,
   },
+    logoContainer: {
+    marginBottom: 10,
+    width: 130,  // reduced from 250
+    height: 130, // reduced from 250
+    borderRadius: 60,
+    padding: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  logoImg: {
+    width: '100%',
+    height: '100%',
+    resizeMode: 'contain', 
+  }
 });

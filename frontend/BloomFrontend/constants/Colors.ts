@@ -1,9 +1,9 @@
 export default {
   // Primary colors
-  primary: '#2D5016',      // Deep forest green
-  primaryLight: '#4A7C59', // Medium green
-  secondary: '#8FBC8F',    // Sage green
-  accent: '#FFB347',       // Warm orange
+  primary: '#90C67C',      // Deep forest green
+  primaryLight: '#E1EEBC', // Medium green
+  secondary: '#67AE6E',    // Sage green
+  accent: '#328E6E',       // Warm orange
   
   // Background colors
   background: '#F8FDF8',   // Very light mint
@@ -25,7 +25,7 @@ export default {
   info: '#17A2B8',         // Info blue
   
   // Neutral colors
-  white: '#FFFFFF',
+  white: '#000000ff',
   gray: '#6C757D',
   lightGray: '#F8F9FA',
   border: '#DEE2E6',

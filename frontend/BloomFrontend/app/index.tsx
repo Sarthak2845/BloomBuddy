@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Dimensions, StatusBar } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Dimensions, StatusBar, Image } from 'react-native';
 import { useRouter } from 'expo-router';
 import { MotiView, MotiText } from 'moti';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -15,7 +15,7 @@ export default function WelcomeScreen() {
       <StatusBar barStyle="light-content" backgroundColor={Colors.primary} />
       
       <LinearGradient
-        colors={[Colors.primary, Colors.primaryLight, Colors.secondary]}
+        colors={[Colors.primaryLight,Colors.primary]}
         style={styles.gradient}
       >
         {/* Floating Elements */}
@@ -54,7 +54,10 @@ export default function WelcomeScreen() {
             transition={{ type: 'spring', damping: 15, stiffness: 100, delay: 300 }}
             style={styles.logoContainer}
           >
-            <Text style={styles.logoEmoji}>🌺</Text>
+            <Image
+              source={require('../assets/images/plant.png')}
+              style={styles.logoImg}
+            />
           </MotiView>
 
           {/* Title Animation */}
@@ -98,35 +101,14 @@ export default function WelcomeScreen() {
               activeOpacity={0.8}
             >
               <LinearGradient
-                colors={[Colors.accent, '#FF8C42']}
+                colors={[Colors.accent,'#67AE6E']}
                 style={styles.buttonGradient}
               >
                 <Text style={styles.buttonText}>Get Started</Text>
-                <Text style={styles.buttonEmoji}>🚀</Text>
               </LinearGradient>
             </TouchableOpacity>
           </MotiView>
 
-          {/* Features */}
-          <MotiView
-            from={{ opacity: 0, translateY: 40 }}
-            animate={{ opacity: 1, translateY: 0 }}
-            transition={{ type: 'timing', duration: 800, delay: 1600 }}
-            style={styles.features}
-          >
-            <View style={styles.feature}>
-              <Text style={styles.featureEmoji}>📸</Text>
-              <Text style={styles.featureText}>Photo ID</Text>
-            </View>
-            <View style={styles.feature}>
-              <Text style={styles.featureEmoji}>🔍</Text>
-              <Text style={styles.featureText}>Plant Info</Text>
-            </View>
-            <View style={styles.feature}>
-              <Text style={styles.featureEmoji}>💚</Text>
-              <Text style={styles.featureText}>Care Tips</Text>
-            </View>
-          </MotiView>
         </View>
       </LinearGradient>
     </View>
@@ -154,9 +136,17 @@ const styles = StyleSheet.create({
   },
   logoContainer: {
     marginBottom: 20,
+    width: 220,  // reduced from 250
+    height: 220, // reduced from 250
+    borderRadius: 60,
+    padding: 15,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  logoEmoji: {
-    fontSize: 80,
+  logoImg: {
+    width: '100%',
+    height: '100%',
+    resizeMode: 'contain', 
   },
   title: {
     fontSize: 48,
@@ -178,7 +168,7 @@ const styles = StyleSheet.create({
   },
   description: {
     fontSize: 16,
-    color: Colors.white,
+    color: 'grey',
     textAlign: 'center',
     marginBottom: 40,
     opacity: 0.8,
