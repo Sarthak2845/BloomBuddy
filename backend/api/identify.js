@@ -11,7 +11,7 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-const upload = multer({ dest: "uploads/" });
+const upload = multer({ dest: "/tmp/uploads/" });
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_KEY ,
   baseURL: "https://openrouter.ai/api/v1"
@@ -302,4 +302,4 @@ Return only valid JSON with 5-8 plant recommendations.`;
   }
 });
 
-app.listen(3000, () => console.log("Server running on http://localhost:3000"));
+export default app;
