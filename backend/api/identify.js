@@ -1,84 +1,146 @@
+import express from "express";
 import axios from "axios";
 import FormData from "form-data";
 import OpenAI from "openai";
+import fs from "fs";
+import multer from "multer";
 
-export default async function handler(req, res) {
-  if (req.method !== "POST") {
-    return res.status(405).json({ error: "Only POST allowed" });
+const app = express();
+const upload = multer({ dest: "uploads/" });
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_KEY ,
+  baseURL: "https://openrouter.ai/api/v1"
+});
+
+const PLANTNET_URL = (project = "all") =>
+  `https://my-api.plantnet.org/v2/identify/${project}?api-key=${process.env.PLANTNET_KEY}`;
+
+app.post("/api/identify", upload.array("images", 5), async (req, res) => {
+  if (!req.files || req.files.length === 0) {
+    return res.status(400).json({ error: "No images uploaded" });
   }
+
+  // Helper to cleanup multer temp files
+  const cleanupFiles = () => {
+    req.files.forEach((f) => {
+      try { fs.unlinkSync(f.path); } catch (e) { /* ignore */ }
+    });
+  };
 
   try {
-    const { imageUrls } = req.body; // array of 1–5 image URLs
-    if (!imageUrls || imageUrls.length === 0)
-      return res.status(400).json({ error: "No image URLs provided" });
-
-    // 1️⃣ Prepare FormData for PlantNet
+    // Build FormData for PlantNet
     const form = new FormData();
-    imageUrls.forEach(() => form.append("organs", "leaf"));
-    for (const url of imageUrls) {
-      const img = await axios.get(url, { responseType: "arraybuffer" });
-      form.append("images", img.data, "plant.jpg");
+    // If client provided organs in body, use them; otherwise default to 'leaf'
+    const organsFromBody = Array.isArray(req.body.organs) ? req.body.organs : (req.body.organs ? [req.body.organs] : []);
+    req.files.forEach((file, idx) => {
+      const organ = organsFromBody[idx] || "leaf";
+      form.append("organs", organ);
+      form.append("images", fs.createReadStream(file.path));
+    });
+
+    const plantRes = await axios.post(PLANTNET_URL("all"), form, {
+      headers: { ...form.getHeaders() },
+      timeout: 30000,
+    });
+
+    const plantData = plantRes.data;
+    if (!plantData || !Array.isArray(plantData.results) || plantData.results.length === 0) {
+      cleanupFiles();
+      return res.status(404).json({ error: "No identification results from PlantNet" });
     }
 
-    // 2️⃣ Call PlantNet API
-    const plantRes = await axios.post(
-      `https://my-api.plantnet.org/v2/identify/all?api-key=${process.env.PLANTNET_KEY}`,
-      form,
-      { headers: form.getHeaders() }
-    );
+    // pick highest score result (defensive)
+    const bestResult = plantData.results.reduce((best, cur) => (cur.score > (best?.score ?? -1) ? cur : best), plantData.results[0]);
+    const species = bestResult.species || {};
+    const scientificName = species.scientificNameWithoutAuthor || "";
+    const commonNames = species.commonNames || [];
+    const family = species.family?.scientificNameWithoutAuthor || "";
+    const score = bestResult.score ?? null;
 
-    const best = plantRes.data.results[0];
-    const scientificName = best.species.scientificNameWithoutAuthor;
-    const commonNames = best.species.commonNames || [];
-    const family = best.species.family?.scientificNameWithoutAuthor || "";
-
-    // 3️⃣ Ask OpenAI for structured info
-    const openai = new OpenAI({ apiKey: process.env.OPENAI_KEY });
-    const prompt = `
-You are a professional botanist.  
-Provide the following structured JSON data (no extra text) for the plant "${scientificName}" (${commonNames.join(", ")}), family ${family}:
-
+    // Prepare prompt for OpenAI - request strict JSON output
+    const prompt = `You are a plant-care assistant. Given the species identified below, produce a single JSON object (no surrounding text) with the following fields:
 {
-  "scientific_name": "",
-  "common_name": "",
-  "category": "",
-  "family": "",
-  "general_traits": "",
-  "description": "",
-  "watering_times": "",
-  "fertilizer": "",
-  "temperature": "",
-  "sunlight": "",
-  "soil": "",
-  "pests": "",
-  "diseases": "",
-  "medicinal_use": "",
-  "pet_friendly": ""
+  "scientific_name": "string",
+  "common_names": ["string"],
+  "family": "string",
+  "category": "string",
+  "short_description": "string",
+  "care": {
+    "watering": "string",
+    "sunlight": "string",
+    "soil": "string",
+    "temperature": "string",
+    "fertilizer": "string",
+    "pruning": "string"
+  },
+  "pests_and_diseases": "string",
+  "medicinal_use": "string",
+  "pet_friendly": "string",
+  "typical_health_issues": "string",
+  "recommended_action": "string"
 }
 
-All values should be concise, factual, and formatted for app display.
-`;
+Species info:
+- scientific_name: "${scientificName || "unknown"}"
+- family: "${family || "unknown"}"
+- identification_confidence: ${score ?? 0}
 
-    const ai = await openai.chat.completions.create({
+Return valid JSON only. If you are unsure about any field, provide a best-effort reasonable value and mark it with the word 'approx' in the text.`;
+
+
+    // Call OpenAI (chat completion). Keep temperature low for deterministic output.
+    const aiRes = await openai.chat.completions.create({
       model: "gpt-4o-mini",
-      response_format: { type: "json_object" },
       messages: [
-        { role: "system", content: "You provide structured plant information." },
+        { role: "system", content: "You must return only valid JSON matching the requested schema." },
         { role: "user", content: prompt }
-      ]
+      ],
+      max_tokens: 800,
+      temperature: 0.2,
     });
 
-    const plantInfo = JSON.parse(ai.choices[0].message.content);
+    const aiMessage = aiRes?.choices?.[0]?.message?.content;
+    if (!aiMessage) {
+      cleanupFiles();
+      return res.status(502).json({ error: "AI did not return a response" });
+    }
 
-    // 4️⃣ Return full structured result
-    res.json({
-      scientific_name: plantInfo.scientific_name || scientificName,
-      common_name: plantInfo.common_name || commonNames.join(", "),
-      ...plantInfo
-    });
+    let plantInfo;
+    try {
+      plantInfo = JSON.parse(aiMessage);
+    } catch (e) {
+      // Attempt to extract JSON substring if assistant included extra text
+      const jsonMatch = aiMessage.match(/\{[\s\S]*\}$/);
+      if (jsonMatch) {
+        plantInfo = JSON.parse(jsonMatch[0]);
+      } else {
+        throw new Error("Failed to parse AI JSON response");
+      }
+    }
+
+    // Combine PlantNet raw data and AI result for the client
+    const responsePayload = {
+      plantnet: {
+        raw: plantData,
+        best_result: bestResult,
+        scientific_name: scientificName,
+        common_names: commonNames,
+        family,
+        score,
+      },
+      ai: plantInfo,
+    };
+
+    cleanupFiles();
+    return res.json(responsePayload);
 
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "Failed to process plant identification" });
+    cleanupFiles();
+    console.error("identify error:", err?.response?.data ?? err?.message ?? err);
+    const status = err?.response?.status || 500;
+    const message = err?.response?.data || err?.message || "Identification failed";
+    return res.status(status).json({ error: message });
   }
-}
+});
+
+app.listen(3000, () => console.log("Server running on http://localhost:3000"));
