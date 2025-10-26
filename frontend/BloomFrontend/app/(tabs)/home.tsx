@@ -18,6 +18,8 @@ import { Ionicons } from '@expo/vector-icons';
 import Colors from '../../constants/Colors';
 import { useRouter } from 'expo-router';
 import Loading from '@/components/Loading';
+import { identifyPlant, identifyPlantByName, savePlantRecord } from '@/lib/services/plantService';
+import { getAuth, signInAnonymously } from 'firebase/auth';
 
 const { width } = Dimensions.get('window');
 
@@ -27,58 +29,113 @@ export default function HomeScreen() {
   const [loading, setLoading] = useState(false);
   const router = useRouter();
 
-  const mockPlantData = {
-    name: 'Monstera Deliciosa',
-    scientific: 'Monstera deliciosa Liebm.',
-    family: 'Araceae',
-    region: 'Central America, found in tropical rainforests',
-    description: 'Known as the Swiss Cheese Plant, this popular houseplant features large, glossy leaves with natural holes. It\'s perfect for indoor spaces and can grow quite large with proper care.',
-    careInstructions: 'Water when top soil is dry, provide bright indirect light, and maintain humidity above 50%.',
-    toxicity: 'Toxic to pets and children if ingested',
-    difficulty: 'Easy',
+
+
+  // Remove Firebase dependency for now
+  const ensureAuthenticated = async () => {
+    // Skip authentication for demo
+    return true;
   };
 
-  const identifyPlant = async (source: 'name' | 'image') => {
+  const handleIdentifyPlant = async (source: 'name' | 'image') => {
     if (source === 'name' && !plantName.trim()) {
-      Alert.alert('Please enter a plant name');
+      Alert.alert('Error', 'Please enter a plant name');
+      return;
+    }
+    
+    if (source === 'image' && !image) {
+      Alert.alert('Error', 'Please select an image first');
       return;
     }
     
     setLoading(true);
-    setTimeout(() => {
+    
+    try {
+      // Ensure user is authenticated (anonymously if needed)
+      await ensureAuthenticated();
+      
+      if (source === 'image' && image) {
+        const imageFile = {
+          uri: image,
+          name: 'plant_image.jpg',
+          type: 'image/jpeg'
+        };
+        
+        const result = await identifyPlant([imageFile]);
+        
+        try {
+          await savePlantRecord(result, image, 'camera');
+        } catch (saveError) {
+          console.warn('Failed to save plant record:', saveError);
+        }
+        
+        // Navigate to result screen
+        router.push({
+          pathname: '/(tabs)/result',
+          params: {
+            plantData: JSON.stringify(result),
+            imageUri: image,
+            source: 'image'
+          },
+        });
+      } else if (source === 'name' && plantName.trim()) {
+        const result = await identifyPlantByName(plantName.trim());
+        
+        try {
+          await savePlantRecord(result, '', 'gallery');
+        } catch (saveError) {
+          console.warn('Failed to save plant record:', saveError);
+        }
+        
+        router.push({
+          pathname: '/(tabs)/result',
+          params: {
+            plantData: JSON.stringify(result),
+            imageUri: '',
+            source: 'name'
+          },
+        });
+      }
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to identify plant. Please try again.';
+      Alert.alert('Error', errorMessage);
+    } finally {
       setLoading(false);
-      router.push({
-        pathname: '/(tabs)/result',
-        params: {
-          ...mockPlantData,
-          from: source,
-          img: image,
-        },
-      });
-    }, 2500);
+    }
   };
 
   const handleImagePick = async (fromGallery = false) => {
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (status !== 'granted') {
-      Alert.alert('Permission needed', 'Please grant camera roll permissions to use this feature.');
-      return;
-    }
+    try {
+      let permissionResult;
+      
+      if (fromGallery) {
+        permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      } else {
+        permissionResult = await ImagePicker.requestCameraPermissionsAsync();
+      }
+      
+      if (permissionResult.status !== 'granted') {
+        Alert.alert('Permission needed', `Please grant ${fromGallery ? 'photo library' : 'camera'} permissions to use this feature.`);
+        return;
+      }
 
-    const picker = fromGallery
-      ? ImagePicker.launchImageLibraryAsync
-      : ImagePicker.launchCameraAsync;
+      const picker = fromGallery
+        ? ImagePicker.launchImageLibraryAsync
+        : ImagePicker.launchCameraAsync;
 
-    const result = await picker({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 0.8,
-    });
+      const result = await picker({
+        mediaTypes: ['images'],
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.8,
+      });
 
-    if (!result.canceled) {
-      setImage(result.assets[0].uri);
-      identifyPlant('image');
+      if (!result.canceled) {
+        setImage(result.assets[0].uri);
+      }
+    } catch (error) {
+      console.error('Image picker error:', error);
+      Alert.alert('Error', 'Failed to access camera/gallery. Please try again.');
     }
   };
 
@@ -123,7 +180,7 @@ export default function HomeScreen() {
           </View>
           <TouchableOpacity
             style={[styles.searchButton, !plantName.trim() && styles.disabledButton]}
-            onPress={() => identifyPlant('name')}
+            onPress={() => handleIdentifyPlant('name')}
             disabled={!plantName.trim() || loading}
           >
             <LinearGradient
@@ -162,6 +219,7 @@ export default function HomeScreen() {
             <TouchableOpacity
               style={styles.cameraButton}
               onPress={() => handleImagePick(false)}
+              disabled={loading}
             >
               <LinearGradient
                 colors={[Colors.accent, '#FF8C42']}
@@ -175,6 +233,7 @@ export default function HomeScreen() {
             <TouchableOpacity
               style={styles.cameraButton}
               onPress={() => handleImagePick(true)}
+              disabled={loading}
             >
               <LinearGradient
                 colors={[Colors.success, '#20C997']}
@@ -197,14 +256,133 @@ export default function HomeScreen() {
           >
             <Text style={styles.previewTitle}>Selected Image</Text>
             <Image source={{ uri: image }} style={styles.previewImage} />
+            <TouchableOpacity
+              style={styles.identifyImageButton}
+              onPress={() => handleIdentifyPlant('image')}
+              disabled={loading}
+            >
+              <LinearGradient
+                colors={[Colors.success, '#20C997']}
+                style={styles.buttonGradient}
+              >
+                <Text style={styles.buttonText}>Identify This Plant</Text>
+                <Ionicons name="leaf" size={20} color={Colors.white} />
+              </LinearGradient>
+            </TouchableOpacity>
           </MotiView>
         )}
+
+        {/* Quick Access Features */}
+        <MotiView
+          from={{ opacity: 0, translateY: 20 }}
+          animate={{ opacity: 1, translateY: 0 }}
+          transition={{ type: 'timing', duration: 600, delay: 800 }}
+          style={styles.quickAccessSection}
+        >
+          <Text style={styles.quickAccessTitle}>🚀 Quick Access</Text>
+          
+          <View style={styles.quickAccessGrid}>
+            <TouchableOpacity
+              style={styles.quickAccessCard}
+              onPress={() => router.push('/recommendations')}
+            >
+              <LinearGradient
+                colors={[Colors.success, '#20C997']}
+                style={styles.quickAccessGradient}
+              >
+                <Ionicons name="location" size={28} color={Colors.white} />
+                <Text style={styles.quickAccessCardTitle}>Location Plants</Text>
+                <Text style={styles.quickAccessSubtitle}>Perfect for your area</Text>
+              </LinearGradient>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.quickAccessCard}
+              onPress={() => router.push('/reminders')}
+            >
+              <LinearGradient
+                colors={[Colors.accent, '#FF8C42']}
+                style={styles.quickAccessGradient}
+              >
+                <Ionicons name="water" size={28} color={Colors.white} />
+                <Text style={styles.quickAccessCardTitle}>Water Reminders</Text>
+                <Text style={styles.quickAccessSubtitle}>Never miss watering</Text>
+              </LinearGradient>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.quickAccessCard}
+              onPress={() => router.push('/(tabs)/collection')}
+            >
+              <LinearGradient
+                colors={[Colors.primary, Colors.primaryLight]}
+                style={styles.quickAccessGradient}
+              >
+                <Ionicons name="leaf" size={28} color={Colors.white} />
+                <Text style={styles.quickAccessCardTitle}>My Plants</Text>
+                <Text style={styles.quickAccessSubtitle}>View collection</Text>
+              </LinearGradient>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.quickAccessCard}
+              onPress={() => router.push('/(tabs)/profile')}
+            >
+              <LinearGradient
+                colors={['#8B5CF6', '#A855F7']}
+                style={styles.quickAccessGradient}
+              >
+                <Ionicons name="person" size={28} color={Colors.white} />
+                <Text style={styles.quickAccessCardTitle}>Profile</Text>
+                <Text style={styles.quickAccessSubtitle}>Settings & stats</Text>
+              </LinearGradient>
+            </TouchableOpacity>
+          </View>
+        </MotiView>
+
+        {/* Feature Highlights */}
+        <MotiView
+          from={{ opacity: 0, translateY: 20 }}
+          animate={{ opacity: 1, translateY: 0 }}
+          transition={{ type: 'timing', duration: 600, delay: 900 }}
+          style={styles.highlightsSection}
+        >
+          <Text style={styles.highlightsTitle}>✨ New Features</Text>
+          
+          <TouchableOpacity
+            style={styles.highlightCard}
+            onPress={() => router.push('/recommendations')}
+          >
+            <View style={styles.highlightIcon}>
+              <Ionicons name="location" size={24} color={Colors.success} />
+            </View>
+            <View style={styles.highlightContent}>
+              <Text style={styles.highlightTitle}>Smart Plant Recommendations</Text>
+              <Text style={styles.highlightSubtitle}>Get personalized plant suggestions based on your location's climate and growing conditions</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color={Colors.textLight} />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.highlightCard}
+            onPress={() => router.push('/reminders')}
+          >
+            <View style={styles.highlightIcon}>
+              <Ionicons name="water" size={24} color={Colors.accent} />
+            </View>
+            <View style={styles.highlightContent}>
+              <Text style={styles.highlightTitle}>Watering Reminders</Text>
+              <Text style={styles.highlightSubtitle}>Set custom watering schedules for your plants and never forget to water them again</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color={Colors.textLight} />
+          </TouchableOpacity>
+        </MotiView>
 
         {/* Quick Tips */}
         <MotiView
           from={{ opacity: 0, translateY: 20 }}
           animate={{ opacity: 1, translateY: 0 }}
-          transition={{ type: 'timing', duration: 600, delay: 800 }}
+          transition={{ type: 'timing', duration: 600, delay: 1000 }}
           style={styles.tipsSection}
         >
           <Text style={styles.tipsTitle}>💡 Tips for Better Results</Text>
@@ -226,16 +404,18 @@ export default function HomeScreen() {
 
         {/* Loading State */}
         {loading && (
-          <MotiView
-            from={{ opacity: 0, scale: 0.8 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ type: 'spring', damping: 15 }}
-            style={styles.loadingContainer}
-          >
-            <Loading />
-            <Text style={styles.loadingText}>🌱 Analyzing your plant...</Text>
-            <Text style={styles.loadingSubtext}>This may take a few seconds</Text>
-          </MotiView>
+          <View style={styles.loadingOverlay}>
+            <MotiView
+              from={{ opacity: 0, scale: 0.8 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ type: 'spring', damping: 15 }}
+              style={styles.loadingContainer}
+            >
+              <Loading />
+              <Text style={styles.loadingText}>🌱 Analyzing your plant...</Text>
+              <Text style={styles.loadingSubtext}>This may take a few seconds</Text>
+            </MotiView>
+          </View>
         )}
       </ScrollView>
     </View>
@@ -254,7 +434,7 @@ const styles = StyleSheet.create({
     paddingBottom: 100,
   },
   header: {
-    paddingHorizontal: 20,
+    paddingHorizontal: width * 0.05,
     paddingTop: 60,
     paddingBottom: 30,
   },
@@ -264,7 +444,7 @@ const styles = StyleSheet.create({
     marginBottom: 5,
   },
   title: {
-    fontSize: 32,
+    fontSize: Math.min(32, width * 0.08),
     fontWeight: '800',
     color: Colors.text,
     marginBottom: 8,
@@ -276,9 +456,9 @@ const styles = StyleSheet.create({
   },
   searchSection: {
     backgroundColor: Colors.card,
-    marginHorizontal: 20,
+    marginHorizontal: width * 0.05,
     borderRadius: 20,
-    padding: 20,
+    padding: width * 0.05,
     marginBottom: 20,
     shadowColor: Colors.shadow,
     shadowOffset: { width: 0, height: 2 },
@@ -355,9 +535,9 @@ const styles = StyleSheet.create({
   },
   cameraSection: {
     backgroundColor: Colors.card,
-    marginHorizontal: 20,
+    marginHorizontal: width * 0.05,
     borderRadius: 20,
-    padding: 20,
+    padding: width * 0.05,
     marginBottom: 20,
     shadowColor: Colors.shadow,
     shadowOffset: { width: 0, height: 2 },
@@ -388,9 +568,9 @@ const styles = StyleSheet.create({
   },
   imagePreview: {
     backgroundColor: Colors.card,
-    marginHorizontal: 20,
+    marginHorizontal: width * 0.05,
     borderRadius: 20,
-    padding: 20,
+    padding: width * 0.05,
     marginBottom: 20,
     alignItems: 'center',
     shadowColor: Colors.shadow,
@@ -406,15 +586,15 @@ const styles = StyleSheet.create({
     marginBottom: 15,
   },
   previewImage: {
-    width: width - 80,
-    height: width - 80,
+    width: width * 0.8,
+    height: width * 0.8,
     borderRadius: 15,
   },
   tipsSection: {
     backgroundColor: Colors.cardSecondary,
-    marginHorizontal: 20,
+    marginHorizontal: width * 0.05,
     borderRadius: 20,
-    padding: 20,
+    padding: width * 0.05,
     marginBottom: 20,
   },
   tipsTitle: {
@@ -454,5 +634,116 @@ const styles = StyleSheet.create({
     marginTop: 5,
     fontSize: 14,
     color: Colors.textLight,
+  },
+  identifyImageButton: {
+    borderRadius: 15,
+    overflow: 'hidden',
+    marginTop: 15,
+    shadowColor: Colors.shadow,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  loadingOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1000,
+  },
+  quickAccessSection: {
+    marginHorizontal: width * 0.05,
+    marginBottom: 20,
+  },
+  quickAccessTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: Colors.text,
+    marginBottom: 15,
+  },
+  quickAccessGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+  },
+  quickAccessCard: {
+    width: (width - (width * 0.1) - 12) / 2,
+    borderRadius: 15,
+    overflow: 'hidden',
+    shadowColor: Colors.shadow,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+    elevation: 4,
+  },
+  quickAccessGradient: {
+    padding: 16,
+    alignItems: 'center',
+    minHeight: 100,
+    justifyContent: 'center',
+  },
+  quickAccessCardTitle: {
+    color: Colors.white,
+    fontSize: 13,
+    fontWeight: '700',
+    textAlign: 'center',
+    marginTop: 6,
+    marginBottom: 2,
+  },
+  quickAccessSubtitle: {
+    color: 'rgba(255, 255, 255, 0.9)',
+    fontSize: 11,
+    textAlign: 'center',
+  },
+  highlightsSection: {
+    marginHorizontal: width * 0.05,
+    marginBottom: 20,
+  },
+  highlightsTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: Colors.text,
+    marginBottom: 15,
+  },
+  highlightCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.card,
+    borderRadius: 15,
+    padding: 16,
+    marginBottom: 12,
+    shadowColor: Colors.shadow,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  highlightIcon: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: Colors.lightGray,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 15,
+  },
+  highlightContent: {
+    flex: 1,
+  },
+  highlightTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: Colors.text,
+    marginBottom: 4,
+  },
+  highlightSubtitle: {
+    fontSize: 13,
+    color: Colors.textSecondary,
+    lineHeight: 18,
   },
 });

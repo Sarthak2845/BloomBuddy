@@ -1,6 +1,7 @@
 import { initializeApp, getApps, getApp } from 'firebase/app';
-import { getAuth } from 'firebase/auth';
+import { initializeAuth, getReactNativePersistence, getAuth } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Define the shape of the config object for clarity and type safety
 interface FirebaseConfig {
@@ -23,7 +24,19 @@ const firebaseConfig: FirebaseConfig = {
 };
 
 const app = getApps().length === 0 ? initializeApp(firebaseConfig as any) : getApp();
-export const auth = getAuth(app);
+
+// Initialize auth with AsyncStorage persistence
+let auth;
+try {
+  auth = initializeAuth(app, {
+    persistence: getReactNativePersistence(AsyncStorage)
+  });
+} catch (error) {
+  // If already initialized, get existing auth instance
+  auth = getAuth(app);
+}
+
+export { auth };
 export const db = getFirestore(app);
 
 export function getAppId(): string {

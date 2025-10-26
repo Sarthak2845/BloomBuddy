@@ -25,10 +25,11 @@ export default {
   info: '#17A2B8',         // Info blue
   
   // Neutral colors
-  white: '#000000ff',
+  white: '#FFFFFF',
   gray: '#6C757D',
   lightGray: '#F8F9FA',
   border: '#DEE2E6',
+  darkGray: '#495057',
   
   // Shadow and overlay
   shadow: 'rgba(45, 80, 22, 0.1)',

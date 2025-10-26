@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -9,12 +9,17 @@ import {
   StatusBar,
   Alert,
   Switch,
+  RefreshControl,
 } from 'react-native';
 import { MotiView } from 'moti';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import { getAuth } from 'firebase/auth';
 import Colors from '../../constants/Colors';
+import { getUserProfile, updateUserProfile, logOut, UserProfile } from '@/lib/services/auth';
+import { getUserPlants } from '@/lib/services/plantService';
+import Loading from '@/components/Loading';
 
 interface ProfileStat {
   label: string;
@@ -23,12 +28,7 @@ interface ProfileStat {
   color: string;
 }
 
-const profileStats: ProfileStat[] = [
-  { label: 'Plants Identified', value: '47', icon: 'leaf', color: Colors.success },
-  { label: 'Days Active', value: '23', icon: 'calendar', color: Colors.info },
-  { label: 'Achievements', value: '8', icon: 'trophy', color: Colors.warning },
-  { label: 'Streak', value: '5', icon: 'flame', color: Colors.error },
-];
+
 
 interface MenuItem {
   title: string;
@@ -39,9 +39,121 @@ interface MenuItem {
 }
 
 export default function ProfileScreen() {
-  const [notificationsEnabled, setNotificationsEnabled] = useState(true);
-  const [darkModeEnabled, setDarkModeEnabled] = useState(false);
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [plantCount, setPlantCount] = useState(0);
   const router = useRouter();
+  const auth = getAuth();
+
+  useEffect(() => {
+    loadUserData();
+  }, []);
+
+  const loadUserData = async () => {
+    try {
+      const user = auth.currentUser;
+      if (!user) {
+        // Create anonymous profile for demo
+        const anonymousProfile: UserProfile = {
+          uid: 'anonymous',
+          email: 'guest@bloombuddy.com',
+          displayName: 'Plant Enthusiast',
+          bio: '🌱 Discovering the world of plants',
+          plantsIdentified: 0,
+          daysActive: 1,
+          achievements: [],
+          streak: 0,
+          joinedAt: new Date(),
+          lastActive: new Date(),
+          preferences: {
+            notifications: true,
+            darkMode: false,
+            language: 'en'
+          }
+        };
+        setUserProfile(anonymousProfile);
+        setPlantCount(0);
+        return;
+      }
+
+      let profile = await getUserProfile(user.uid);
+      if (!profile) {
+        // Create profile for anonymous user
+        profile = {
+          uid: user.uid,
+          email: user.email || 'anonymous@bloombuddy.com',
+          displayName: user.displayName || 'Plant Lover',
+          bio: '🌱 Plant enthusiast & nature lover',
+          plantsIdentified: 0,
+          daysActive: 1,
+          achievements: [],
+          streak: 0,
+          joinedAt: new Date(),
+          lastActive: new Date(),
+          preferences: {
+            notifications: true,
+            darkMode: false,
+            language: 'en'
+          }
+        };
+      }
+      setUserProfile(profile);
+
+      const plants = await getUserPlants(user.uid);
+      setPlantCount(plants.length);
+    } catch (error) {
+      console.error('Error loading user data:', error);
+      // Fallback profile
+      const fallbackProfile: UserProfile = {
+        uid: 'fallback',
+        email: 'user@bloombuddy.com',
+        displayName: 'Plant Lover',
+        bio: '🌱 Welcome to BloomBuddy!',
+        plantsIdentified: 0,
+        daysActive: 1,
+        achievements: [],
+        streak: 0,
+        joinedAt: new Date(),
+        lastActive: new Date(),
+        preferences: {
+          notifications: true,
+          darkMode: false,
+          language: 'en'
+        }
+      };
+      setUserProfile(fallbackProfile);
+      setPlantCount(0);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  };
+
+  const onRefresh = () => {
+    setRefreshing(true);
+    loadUserData();
+  };
+
+  const updatePreference = async (key: keyof UserProfile['preferences'], value: any) => {
+    if (!userProfile) return;
+    
+    try {
+      const updatedPreferences = { ...userProfile.preferences, [key]: value };
+      
+      // Only update in Firestore if user is authenticated
+      if (auth.currentUser && userProfile.uid !== 'anonymous' && userProfile.uid !== 'fallback') {
+        await updateUserProfile(userProfile.uid, { preferences: updatedPreferences });
+      }
+      
+      setUserProfile({ ...userProfile, preferences: updatedPreferences });
+    } catch (error) {
+      console.error('Error updating preference:', error);
+      // Still update locally even if Firestore fails
+      const updatedPreferences = { ...userProfile.preferences, [key]: value };
+      setUserProfile({ ...userProfile, preferences: updatedPreferences });
+    }
+  };
 
   const handleLogout = () => {
     Alert.alert(
@@ -52,11 +164,53 @@ export default function ProfileScreen() {
         { 
           text: 'Logout', 
           style: 'destructive',
-          onPress: () => router.replace('/auth/login')
+          onPress: async () => {
+            try {
+              await logOut();
+              router.replace('/');
+            } catch (error) {
+              console.log('Logout error:', error);
+              router.replace('/');
+            }
+          }
         }
       ]
     );
   };
+
+  const calculateDaysActive = () => {
+    if (!userProfile?.joinedAt) return 0;
+    const joinDate = userProfile.joinedAt.toDate ? userProfile.joinedAt.toDate() : new Date(userProfile.joinedAt);
+    const today = new Date();
+    const diffTime = Math.abs(today.getTime() - joinDate.getTime());
+    return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  };
+
+  if (loading) {
+    return (
+      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+        <Loading message="Loading your profile..." />
+      </View>
+    );
+  }
+
+  if (!userProfile) {
+    return (
+      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+        <Text style={styles.errorText}>Failed to load profile</Text>
+        <TouchableOpacity onPress={loadUserData} style={styles.retryButton}>
+          <Text style={styles.retryText}>Retry</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
+  const profileStats: ProfileStat[] = [
+    { label: 'Plants Identified', value: plantCount.toString(), icon: 'leaf', color: Colors.success },
+    { label: 'Days Active', value: calculateDaysActive().toString(), icon: 'calendar', color: Colors.info },
+    { label: 'Achievements', value: userProfile.achievements.length.toString(), icon: 'trophy', color: Colors.warning },
+    { label: 'Streak', value: userProfile.streak.toString(), icon: 'flame', color: Colors.error },
+  ];
 
   const menuItems: MenuItem[] = [
     {
@@ -106,7 +260,18 @@ export default function ProfileScreen() {
     <View style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor={Colors.primary} />
       
-      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+      <ScrollView 
+        style={styles.scrollView} 
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={[Colors.primary]}
+            tintColor={Colors.primary}
+          />
+        }
+      >
         {/* Header with Profile Info */}
         <LinearGradient
           colors={[Colors.primary, Colors.primaryLight, Colors.secondary]}
@@ -133,9 +298,9 @@ export default function ProfileScreen() {
               </TouchableOpacity>
             </View>
             
-            <Text style={styles.userName}>Sarah Johnson</Text>
-            <Text style={styles.userEmail}>sarah.johnson@email.com</Text>
-            <Text style={styles.userBio}>🌱 Plant enthusiast & nature lover</Text>
+            <Text style={styles.userName}>{userProfile.displayName || 'Plant Lover'}</Text>
+            <Text style={styles.userEmail}>{userProfile.email}</Text>
+            <Text style={styles.userBio}>{userProfile.bio || '🌱 Plant enthusiast & nature lover'}</Text>
           </MotiView>
 
           {/* Floating Elements */}
@@ -214,10 +379,10 @@ export default function ProfileScreen() {
                 <Text style={styles.settingTitle}>Push Notifications</Text>
               </View>
               <Switch
-                value={notificationsEnabled}
-                onValueChange={setNotificationsEnabled}
+                value={userProfile.preferences.notifications}
+                onValueChange={(value) => updatePreference('notifications', value)}
                 trackColor={{ false: Colors.lightGray, true: Colors.primaryLight }}
-                thumbColor={notificationsEnabled ? Colors.primary : Colors.gray}
+                thumbColor={userProfile.preferences.notifications ? Colors.primary : Colors.gray}
               />
             </View>
             
@@ -229,10 +394,10 @@ export default function ProfileScreen() {
                 <Text style={styles.settingTitle}>Dark Mode</Text>
               </View>
               <Switch
-                value={darkModeEnabled}
-                onValueChange={setDarkModeEnabled}
+                value={userProfile.preferences.darkMode}
+                onValueChange={(value) => updatePreference('darkMode', value)}
                 trackColor={{ false: Colors.lightGray, true: Colors.primaryLight }}
-                thumbColor={darkModeEnabled ? Colors.primary : Colors.gray}
+                thumbColor={userProfile.preferences.darkMode ? Colors.primary : Colors.gray}
               />
             </View>
           </View>
@@ -489,5 +654,22 @@ const styles = StyleSheet.create({
   },
   bottomPadding: {
     height: 120,
+  },
+  errorText: {
+    fontSize: 18,
+    color: Colors.error,
+    textAlign: 'center',
+    marginBottom: 20,
+  },
+  retryButton: {
+    backgroundColor: Colors.primary,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 12,
+  },
+  retryText: {
+    color: Colors.white,
+    fontSize: 16,
+    fontWeight: '600',
   },
 });
