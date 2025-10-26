@@ -127,7 +127,7 @@ export default function LoginScreen() {
               disabled={loading}
             >
               <LinearGradient
-                colors={loading ? [Colors.gray, Colors.gray] : [Colors.accent, '#67AE6E']}
+                colors={loading ? [Colors.gray, Colors.gray] : ['#c1277fff', '#2f61abff']}
                 style={styles.loginGradient}
               >
                 {loading ? (
@@ -148,11 +148,6 @@ export default function LoginScreen() {
             </TouchableOpacity>
 
             {/* Divider */}
-            <View style={styles.divider}>
-              <View style={styles.dividerLine} />
-              <Text style={styles.dividerText}>OR</Text>
-              <View style={styles.dividerLine} />
-            </View>
 
           </MotiView>
 
@@ -251,7 +246,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     marginBottom: 16,
     borderWidth: 1,
-    borderColor: Colors.border,
   },
   inputIcon: {
     marginRight: 12,
@@ -294,22 +288,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '700',
     marginRight: 8,
-  },
-  divider: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginVertical: 20,
-  },
-  dividerLine: {
-    flex: 1,
-    height: 1,
-    backgroundColor: Colors.border,
-  },
-  dividerText: {
-    marginHorizontal: 16,
-    fontSize: 14,
-    color: Colors.textLight,
-    fontWeight: '600',
   },
   footer: {
     flexDirection: 'row',
