@@ -55,66 +55,18 @@ export default function RemindersScreen() {
 
   const loadData = async () => {
     try {
-      // DEMO DATA - Remove this block when connecting to real backend
-      const demoPlants = [
-        {
-          id: 'demo1',
-          common_names: ['Snake Plant', 'Mother-in-Law\'s Tongue'],
-          scientific_name: 'Sansevieria trifasciata',
-          family: 'Asparagaceae'
-        },
-        {
-          id: 'demo2', 
-          common_names: ['Peace Lily'],
-          scientific_name: 'Spathiphyllum wallisii',
-          family: 'Araceae'
-        },
-        {
-          id: 'demo3',
-          common_names: ['Rubber Plant'],
-          scientific_name: 'Ficus elastica',
-          family: 'Moraceae'
-        },
-        {
-          id: 'demo4',
-          common_names: ['Monstera', 'Swiss Cheese Plant'],
-          scientific_name: 'Monstera deliciosa',
-          family: 'Araceae'
-        }
-      ];
+      // Load real user plants from Firestore
+      const userPlants = await getUserPlants();
+      setPlants(userPlants);
       
-      const demoReminders = [
-        {
-          id: 'reminder1',
-          plantName: 'Snake Plant',
-          plantId: 'demo1',
-          frequency: 7,
-          nextWatering: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000), // 2 days from now
-          isActive: true,
-          notificationId: 'mock_notif_1'
-        },
-        {
-          id: 'reminder2',
-          plantName: 'Peace Lily',
-          plantId: 'demo2',
-          frequency: 3,
-          nextWatering: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000), // 1 day overdue
-          isActive: true,
-          notificationId: 'mock_notif_2'
-        }
-      ];
-      // END DEMO DATA
-      
-      setPlants(demoPlants);
-      setReminders(demoReminders);
-      
-      // Real implementation (commented out for demo):
-      // const userPlants = await getUserPlants();
-      // setPlants(userPlants);
-      // const savedReminders = []; // Load from AsyncStorage
-      // setReminders(savedReminders);
+      // Load saved reminders (for now using demo data, but structure is ready for real storage)
+      const savedReminders: WateringReminder[] = [];
+      setReminders(savedReminders);
     } catch (error) {
       console.error('Error loading data:', error);
+      // Fallback to empty arrays
+      setPlants([]);
+      setReminders([]);
     }
   };
 
@@ -135,7 +87,7 @@ export default function RemindersScreen() {
     const newReminder: WateringReminder = {
       id: Date.now().toString(),
       plantName: selectedPlant.common_names?.[0] || selectedPlant.scientific_name,
-      plantId: selectedPlant.id,
+      plantId: selectedPlant.id!,
       frequency: parseInt(frequency),
       nextWatering,
       isActive: true,

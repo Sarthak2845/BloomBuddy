@@ -8,6 +8,7 @@ import Colors from '../../constants/Colors';
 import { useRouter } from 'expo-router';
 import Loading from '@/components/Loading';
 import { identifyPlant, identifyPlantByName, savePlantRecord } from '@/lib/services/plantService';
+import { getAuth, signInAnonymously } from 'firebase/auth';
 
 const { width } = Dimensions.get('window');
 
@@ -25,6 +26,8 @@ export default function HomeScreen() {
 
     setLoading(true);
     try {
+      // No authentication required - using guest user approach
+
       let result;
       if (source === 'image' && image) {
         const imageFile = { uri: image, name: 'plant_image.jpg', type: 'image/jpeg' };

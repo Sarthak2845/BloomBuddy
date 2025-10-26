@@ -3,6 +3,22 @@ import { getAuth } from 'firebase/auth';
 import { db } from '../firebase/config';
 import axios, { isAxiosError } from 'axios';
 import { incrementPlantCount } from './auth';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+// Generate a persistent device ID
+async function getDeviceId(): Promise<string> {
+    try {
+        let deviceId = await AsyncStorage.getItem('device_id');
+        if (!deviceId) {
+            deviceId = 'device_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+            await AsyncStorage.setItem('device_id', deviceId);
+        }
+        return deviceId;
+    } catch (error) {
+        // Fallback if AsyncStorage fails
+        return 'device_' + Date.now();
+    }
+}
 
 // Use different URLs for different environments
 // For Android emulator, use 10.0.2.2 instead of localhost
@@ -131,12 +147,14 @@ export async function identifyPlant(imageFiles: ImageFile[], organs?: string[]):
 
 export async function savePlantRecord(result: PlantIdentificationResult, imageUri: string, source: 'camera' | 'gallery' = 'camera'): Promise<string> {
     const auth = getAuth();
-    const userId = auth.currentUser?.uid || 'anonymous';
-
-    // Skip saving if no authentication - just return a mock ID
-    if (!auth.currentUser) {
-        console.log('Skipping save - no authentication');
-        return 'mock-id-' + Date.now();
+    let userId = auth.currentUser?.uid;
+    
+    // Use a persistent guest user ID if not authenticated
+    if (!userId) {
+        // Create a device-specific persistent ID
+        const deviceId = await getDeviceId();
+        userId = `guest-${deviceId}`;
+        console.log('Using persistent guest user:', userId);
     }
 
     const plantRecord: Omit<PlantRecord, 'id'> = {
@@ -174,14 +192,20 @@ export async function savePlantRecord(result: PlantIdentificationResult, imageUr
         tags: [],
         created_at: serverTimestamp(),
         updated_at: serverTimestamp(),
-        user_id: userId
+        user_id: userId!
     };
 
     try {
         const docRef = await addDoc(collection(db, 'plants'), plantRecord);
         
-        // Increment user's plant count
-        await incrementPlantCount(userId);
+        // Only increment count for real authenticated users
+        if (auth.currentUser) {
+            try {
+                await incrementPlantCount(userId!);
+            } catch (error) {
+                console.log('Could not increment plant count:', error);
+            }
+        }
         
         console.log('Plant saved with ID:', docRef.id);
         return docRef.id;
@@ -193,11 +217,12 @@ export async function savePlantRecord(result: PlantIdentificationResult, imageUr
 
 export async function getUserPlants(userId?: string): Promise<PlantRecord[]> {
     const auth = getAuth();
-    const currentUserId = userId || auth.currentUser?.uid;
-
+    let currentUserId = userId || auth.currentUser?.uid;
+    
+    // Use persistent guest user ID if not authenticated
     if (!currentUserId) {
-        // Return empty array instead of throwing error
-        return [];
+        const deviceId = await getDeviceId();
+        currentUserId = `guest-${deviceId}`;
     }
     
     try {
@@ -286,7 +311,7 @@ export async function addPlantTags(plantId: string, tags: string[]): Promise<voi
     try {
         await updateDoc(doc(db, 'plants', plantId), {
             tags,
-            updated_at: serverTimestamp()
+            updated_at : serverTimestamp()
         });
     } catch (error) {
         console.error('Error adding tags:', error);
