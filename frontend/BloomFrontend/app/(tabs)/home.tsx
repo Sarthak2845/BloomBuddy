@@ -53,7 +53,7 @@ export default function HomeScreen() {
     try {
       // Ensure user is authenticated (anonymously if needed)
       await ensureAuthenticated();
-      
+                
       if (source === 'image' && image) {
         const imageFile = {
           uri: image,

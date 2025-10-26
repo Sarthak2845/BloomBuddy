@@ -4,7 +4,7 @@ import { db } from '../firebase/config';
 import axios, { isAxiosError } from 'axios';
 import { incrementPlantCount } from './auth';
 
-const API_BASE_URL = 'https://bloombackend-ol68q46j7-sarthak-ranas-projects-1e9f153c.vercel.app';
+const API_BASE_URL = 'http://localhost:3000';
 
 interface ImageFile {
     uri: string;
