@@ -4,7 +4,11 @@ import { db } from '../firebase/config';
 import axios, { isAxiosError } from 'axios';
 import { incrementPlantCount } from './auth';
 
-const API_BASE_URL = 'http://localhost:3000';
+// Use different URLs for different environments
+// For Android emulator, use 10.0.2.2 instead of localhost
+const API_BASE_URL = __DEV__ 
+  ? 'http://10.0.2.2:3000'  // Android emulator
+  : 'http://localhost:3000'; // Production
 
 interface ImageFile {
     uri: string;
@@ -98,12 +102,17 @@ export async function identifyPlant(imageFiles: ImageFile[], organs?: string[]):
         imageFiles.forEach((file, index) => {
             const organ = organs?.[index] || 'leaf';
             formData.append('organs', organ);
+            
+            // React Native FormData format
             formData.append('images', {
                 uri: file.uri,
-                name: file.name,
-                type: file.type,
+                name: file.name || 'image.jpg',
+                type: file.type || 'image/jpeg',
             } as any);
         });
+
+        console.log('Sending request to:', `${API_BASE_URL}/api/identify`);
+        console.log('FormData entries:', imageFiles.length);
 
         const response = await axios.post(`${API_BASE_URL}/api/identify`, formData, {
             headers: {
@@ -114,6 +123,7 @@ export async function identifyPlant(imageFiles: ImageFile[], organs?: string[]):
 
         return response.data;
     } catch (error) {
+        console.error('Plant identification error:', error);
         const errorMessage = isAxiosError(error) 
             ? error.response?.data?.error || error.message 
             : (error as Error).message;

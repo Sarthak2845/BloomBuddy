@@ -58,101 +58,6 @@ export default function RecommendationsScreen() {
     try {
       setLoading(true);
       
-      // DEMO DATA - Remove this block when connecting to real backend
-      const demoLocation = {
-        coords: {
-          latitude: 37.7749,
-          longitude: -122.4194,
-          altitude: null,
-          accuracy: 5,
-          altitudeAccuracy: null,
-          heading: null,
-          speed: null,
-        },
-        timestamp: Date.now(),
-      };
-      
-      const demoAddress = 'San Francisco, CA, USA';
-      
-      const demoRecommendations = {
-        location_info: {
-          climate_zone: 'Mediterranean (Zone 10a)',
-          season: 'Spring',
-          temperature_range: '50-70°F (10-21°C)',
-          humidity: 'Moderate (60-70%)',
-          soil_type: 'Well-draining, sandy loam'
-        },
-        recommended_plants: [
-          {
-            name: 'Lavender',
-            scientific_name: 'Lavandula angustifolia',
-            category: 'Herb/Aromatic',
-            difficulty: 'Easy' as const,
-            best_season: 'Spring to Fall',
-            growth_time: '3-4 months',
-            benefits: 'Attracts pollinators, natural pest deterrent, aromatic flowers for relaxation',
-            care_tips: 'Plant in full sun with excellent drainage. Water deeply but infrequently once established.',
-            watering_frequency: 'Every 7-10 days'
-          },
-          {
-            name: 'California Poppy',
-            scientific_name: 'Eschscholzia californica',
-            category: 'Annual Flower',
-            difficulty: 'Easy' as const,
-            best_season: 'Spring',
-            growth_time: '2-3 months',
-            benefits: 'Drought tolerant, self-seeding, attracts beneficial insects',
-            care_tips: 'Direct sow seeds in fall or early spring. Thrives in poor soil with minimal water.',
-            watering_frequency: 'Every 10-14 days'
-          },
-          {
-            name: 'Rosemary',
-            scientific_name: 'Rosmarinus officinalis',
-            category: 'Herb',
-            difficulty: 'Easy' as const,
-            best_season: 'Year-round',
-            growth_time: '4-6 months',
-            benefits: 'Culinary herb, evergreen foliage, drought tolerant once established',
-            care_tips: 'Plant in full sun with well-draining soil. Avoid overwatering.',
-            watering_frequency: 'Every 7-10 days'
-          },
-          {
-            name: 'Japanese Maple',
-            scientific_name: 'Acer palmatum',
-            category: 'Ornamental Tree',
-            difficulty: 'Medium' as const,
-            best_season: 'Fall planting',
-            growth_time: '1-2 years to establish',
-            benefits: 'Beautiful fall colors, compact size, shade tolerance',
-            care_tips: 'Protect from hot afternoon sun. Mulch well and water regularly first year.',
-            watering_frequency: 'Every 3-5 days'
-          },
-          {
-            name: 'Succulents Mix',
-            scientific_name: 'Various species',
-            category: 'Succulent',
-            difficulty: 'Easy' as const,
-            best_season: 'Spring to Fall',
-            growth_time: '2-3 months',
-            benefits: 'Low maintenance, water-wise, architectural interest',
-            care_tips: 'Plant in containers with drainage holes. Use cactus soil mix.',
-            watering_frequency: 'Every 14-21 days'
-          }
-        ],
-        seasonal_tips: 'Spring is perfect for planting in your Mediterranean climate. Take advantage of mild temperatures and natural rainfall. Consider installing drip irrigation for water efficiency.',
-        local_considerations: 'Your coastal location provides natural cooling and humidity. Watch for salt spray damage near the ocean. Consider native California plants for best results and water conservation.'
-      };
-      
-      // Simulate API delay
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
-      setLocation(demoLocation);
-      setAddress(demoAddress);
-      setRecommendations(demoRecommendations);
-      // END DEMO DATA
-      
-      // Real implementation (commented out for demo):
-      /*
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') {
         Alert.alert('Permission Denied', 'Location permission is required to get plant recommendations for your area.');
@@ -167,19 +72,19 @@ export default function RecommendationsScreen() {
         longitude: currentLocation.coords.longitude,
       });
 
+      let fullAddress = '';
       if (reverseGeocode.length > 0) {
         const addr = reverseGeocode[0];
-        const fullAddress = `${addr.city || ''}, ${addr.region || ''}, ${addr.country || ''}`.replace(/^,\s*|,\s*$/g, '');
+        fullAddress = `${addr.city || ''}, ${addr.region || ''}, ${addr.country || ''}`.replace(/^,\s*|,\s*$/g, '');
         setAddress(fullAddress);
       }
 
       const recs = await getLocationRecommendations(
         currentLocation.coords.latitude,
         currentLocation.coords.longitude,
-        address
+        fullAddress
       );
       setRecommendations(recs);
-      */
 
     } catch (error) {
       console.error('Location error:', error);

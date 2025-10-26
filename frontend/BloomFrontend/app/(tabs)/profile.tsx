@@ -208,8 +208,8 @@ export default function ProfileScreen() {
   const profileStats: ProfileStat[] = [
     { label: 'Plants Identified', value: plantCount.toString(), icon: 'leaf', color: Colors.success },
     { label: 'Days Active', value: calculateDaysActive().toString(), icon: 'calendar', color: Colors.info },
-    { label: 'Achievements', value: userProfile.achievements.length.toString(), icon: 'trophy', color: Colors.warning },
-    { label: 'Streak', value: userProfile.streak.toString(), icon: 'flame', color: Colors.error },
+    { label: 'Achievements', value: (userProfile.achievements || []).length.toString(), icon: 'trophy', color: Colors.warning },
+    { label: 'Streak', value: (userProfile.streak || 0).toString(), icon: 'flame', color: Colors.error },
   ];
 
   const menuItems: MenuItem[] = [
@@ -379,10 +379,10 @@ export default function ProfileScreen() {
                 <Text style={styles.settingTitle}>Push Notifications</Text>
               </View>
               <Switch
-                value={userProfile.preferences.notifications}
+                value={userProfile.preferences?.notifications || false}
                 onValueChange={(value) => updatePreference('notifications', value)}
                 trackColor={{ false: Colors.lightGray, true: Colors.primaryLight }}
-                thumbColor={userProfile.preferences.notifications ? Colors.primary : Colors.gray}
+                thumbColor={userProfile.preferences?.notifications ? Colors.primary : Colors.gray}
               />
             </View>
             
@@ -394,10 +394,10 @@ export default function ProfileScreen() {
                 <Text style={styles.settingTitle}>Dark Mode</Text>
               </View>
               <Switch
-                value={userProfile.preferences.darkMode}
+                value={userProfile.preferences?.darkMode || false}
                 onValueChange={(value) => updatePreference('darkMode', value)}
                 trackColor={{ false: Colors.lightGray, true: Colors.primaryLight }}
-                thumbColor={userProfile.preferences.darkMode ? Colors.primary : Colors.gray}
+                thumbColor={userProfile.preferences?.darkMode ? Colors.primary : Colors.gray}
               />
             </View>
           </View>

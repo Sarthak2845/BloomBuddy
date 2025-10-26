@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import express from "express";
 import axios from "axios";
 import FormData from "form-data";
@@ -98,6 +99,9 @@ Return only valid JSON.`;
 });
 
 app.post("/api/identify", upload.array("images", 5), async (req, res) => {
+  console.log('POST /api/identify - Files received:', req.files?.length || 0);
+  console.log('Body organs:', req.body.organs);
+  
   if (!req.files || req.files.length === 0) {
     return res.status(400).json({ error: "No images uploaded" });
   }
