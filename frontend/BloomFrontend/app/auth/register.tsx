@@ -223,7 +223,7 @@ export default function RegisterScreen() {
                 disabled={loading}
               >
                 <LinearGradient
-                  colors={loading ? [Colors.gray, Colors.gray] : [Colors.accent, '#67AE6E']}
+                  colors={loading ? [Colors.gray, Colors.gray] : ['#c1277fff', '#2f61abff']}
                   style={styles.registerGradient}
                 >
                   {loading ? (
