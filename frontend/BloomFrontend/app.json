@@ -4,7 +4,7 @@
     "slug": "BloomFrontend",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/icon.png",
+    "icon": "../BloomFrontend/assets/images/plant.png",
     "scheme": "bloomfrontend",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,

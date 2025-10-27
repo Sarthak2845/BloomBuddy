@@ -22,7 +22,7 @@ async function getDeviceId(): Promise<string> {
 
 // Use different URLs for different environments
 // For Android emulator, use 10.0.2.2 instead of localhost
-const API_BASE_URL = 'https://bloombackend-k3ygizf89-sarthak-ranas-projects-1e9f153c.vercel.app'; // Production
+const API_BASE_URL = 'https://bloombackend-omega.vercel.app'; // Production
 
 interface ImageFile {
     uri: string;
