@@ -1,37 +1,52 @@
-export default {
-  // Primary colors
-  primary: '#4CAF50',        // Vibrant forest green
-  primaryLight: '#A5D6A7',   // Soft green for backgrounds
-  secondary: '#81C784',      // Bright leafy green
-  accent: '#FF9800',         // Warm orange accent
-  accentLight: '#FFB74D',    // Lighter accent for gradients
-
-  // Background colors
-  background: '#F1F8E9',     // Very light greenish
-  backgroundSecondary: '#E8F5E9', // Soft card backgrounds
-
-  // Text colors
-  text: '#1B5E20',           // Dark green for main text
-  textSecondary: '#33691E',  // Medium dark green
-  textLight: '#7CB342',      // Lighter green
-
-  // Card and surface colors
-  card: '#FFFFFF',            // Pure white for cards
-  cardSecondary: '#F9FFF9',  // Subtle green tint for card backgrounds
-
-  // Status colors
-  success: '#43A047',         // Bright green success
-  warning: '#FFC107',         // Amber warning
-  error: '#E53935',           // Strong red error
-  info: '#1E88E5',            // Bright blue info
-
-  // Neutral colors
+export const LightTheme = {
+  primary: '#4CAF50',
+  primaryLight: '#A5D6A7',
+  secondary: '#81C784',
+  accent: '#FF9800',
+  accentLight: '#FFB74D',
+  background: '#F1F8E9',
+  backgroundSecondary: '#E8F5E9',
+  text: '#1B5E20',
+  textSecondary: '#33691E',
+  textLight: '#7CB342',
+  card: '#FFFFFF',
+  cardSecondary: '#F9FFF9',
+  success: '#43A047',
+  warning: '#FFC107',
+  error: '#E53935',
+  info: '#1E88E5',
   white: '#FFFFFF',
   gray: '#9E9E9E',
   lightGray: '#F5F5F5',
   border: '#C8E6C9',
   darkGray: '#616161',
-
-  // Shadow and overlay
   shadow: 'rgba(0, 128, 0, 0.15)',
-}
+};
+
+export const DarkTheme = {
+  primary: '#66BB6A',
+  primaryLight: '#4CAF50',
+  secondary: '#A5D6A7',
+  accent: '#FFB74D',
+  accentLight: '#FF8A65',
+  background: '#0D1B0F',
+  backgroundSecondary: '#1A2E1D',
+  text: '#E8F5E8',
+  textSecondary: '#C8E6C9',
+  textLight: '#A5D6A7',
+  card: '#1E2A20',
+  cardSecondary: '#2A3B2D',
+  success: '#66BB6A',
+  warning: '#FFB74D',
+  error: '#EF5350',
+  info: '#42A5F5',
+  white: '#FFFFFF',
+  gray: '#757575',
+  lightGray: '#2A3B2D',
+  border: '#3E5441',
+  darkGray: '#424242',
+  shadow: 'rgba(0, 0, 0, 0.3)',
+};
+
+const Colors = LightTheme;
+export default Colors;

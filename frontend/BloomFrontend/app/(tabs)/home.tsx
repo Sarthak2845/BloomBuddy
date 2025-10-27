@@ -4,11 +4,11 @@ import * as ImagePicker from 'expo-image-picker';
 import { MotiView } from 'moti';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
-import Colors from '../../constants/Colors';
 import { useRouter } from 'expo-router';
+import { useTheme } from '../../contexts/ThemeContext';
 import Loading from '@/components/Loading';
 import { identifyPlant, identifyPlantByName, savePlantRecord } from '@/lib/services/plantService';
-import { getAuth, signInAnonymously } from 'firebase/auth';
+import { getAuth } from 'firebase/auth';
 
 const { width } = Dimensions.get('window');
 
@@ -17,6 +17,8 @@ export default function HomeScreen() {
   const [image, setImage] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const router = useRouter();
+  const { theme, isDark } = useTheme();
+  const styles = createStyles(theme);
 
   const handleIdentifyPlant = async (source: 'name' | 'image') => {
     if ((source === 'name' && !plantName.trim()) || (source === 'image' && !image)) {
@@ -24,10 +26,14 @@ export default function HomeScreen() {
       return;
     }
 
+    const auth = getAuth();
+    if (!auth.currentUser) {
+      Alert.alert('Authentication Required', 'Please sign in to identify plants.');
+      return;
+    }
+
     setLoading(true);
     try {
-      // No authentication required - using guest user approach
-
       let result;
       if (source === 'image' && image) {
         const imageFile = { uri: image, name: 'plant_image.jpg', type: 'image/jpeg' };
@@ -81,7 +87,7 @@ export default function HomeScreen() {
     <TouchableOpacity style={[styles.actionButton, disabled && styles.disabledButton]} onPress={onPress} disabled={disabled}>
       <LinearGradient colors={colors} style={styles.buttonGradient}>
         <Text style={styles.buttonText}>{title}</Text>
-        {icon && <Ionicons name={icon} size={20} color={Colors.white} />}
+        {icon && <Ionicons name={icon} size={20} color={theme.white} />}
       </LinearGradient>
     </TouchableOpacity>
   );
@@ -89,7 +95,7 @@ export default function HomeScreen() {
   const QuickAccessCard = ({ title, subtitle, icon, colors, onPress }: any) => (
     <TouchableOpacity style={styles.quickAccessCard} onPress={onPress}>
       <LinearGradient colors={colors} style={styles.quickAccessGradient}>
-        <Ionicons name={icon} size={28} color={Colors.white} />
+        <Ionicons name={icon} size={28} color={theme.white} />
         <Text style={styles.quickAccessCardTitle}>{title}</Text>
         <Text style={styles.quickAccessSubtitle}>{subtitle}</Text>
       </LinearGradient>
@@ -105,7 +111,7 @@ export default function HomeScreen() {
         <Text style={styles.highlightTitle}>{title}</Text>
         <Text style={styles.highlightSubtitle}>{subtitle}</Text>
       </View>
-      <Ionicons name="chevron-forward" size={20} color={Colors.textLight} />
+      <Ionicons name="chevron-forward" size={20} color={theme.textLight} />
     </TouchableOpacity>
   );
 
@@ -118,88 +124,80 @@ export default function HomeScreen() {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor={Colors.background} />
+      <StatusBar barStyle={isDark ? "light-content" : "dark-content"} backgroundColor={theme.background} />
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        {/* Header */}
         <MotiView from={{ opacity: 0, translateY: -20 }} animate={{ opacity: 1, translateY: 0 }} transition={{ duration: 600 }} style={styles.header}>
           <Text style={styles.greeting}>Hello Plant Lover! 🌱</Text>
           <Text style={styles.title}>Discover Your Plant</Text>
           <Text style={styles.subtitle}>Identify any plant with AI-powered recognition</Text>
         </MotiView>
 
-        {/* Search Section */}
         <MotiView from={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ type: 'spring', damping: 15, delay: 200 }} style={styles.searchSection}>
           <Text style={styles.sectionTitle}>🔍 Search by Name</Text>
           <View style={styles.inputContainer}>
-            <Ionicons name="search" size={20} color={Colors.textLight} style={styles.searchIcon} />
-            <TextInput placeholder="Enter plant name" placeholderTextColor={Colors.textLight} style={styles.input} value={plantName} onChangeText={setPlantName} />
+            <Ionicons name="search" size={20} color={theme.textLight} style={styles.searchIcon} />
+            <TextInput placeholder="Enter plant name" placeholderTextColor={theme.textLight} style={styles.input} value={plantName} onChangeText={setPlantName} />
           </View>
           <ActionButton
             title="Identify Plant"
             onPress={() => handleIdentifyPlant('name')}
             icon="arrow-forward"
             disabled={!plantName.trim() || loading}
-            colors={!plantName.trim() ? [Colors.gray, Colors.gray] : [Colors.primary, Colors.primaryLight]}
+            colors={!plantName.trim() ? [theme.gray, theme.gray] : [theme.primary, theme.primaryLight]}
           />
         </MotiView>
 
-        {/* Divider */}
         <MotiView from={{ opacity: 0, scaleX: 0 }} animate={{ opacity: 1, scaleX: 1 }} transition={{ duration: 800, delay: 400 }} style={styles.divider}>
           <View style={styles.dividerLine} />
           <Text style={styles.dividerText}>OR</Text>
           <View style={styles.dividerLine} />
         </MotiView>
 
-        {/* Camera Section */}
         <MotiView from={{ opacity: 0, translateY: 30 }} animate={{ opacity: 1, translateY: 0 }} transition={{ duration: 600, delay: 600 }} style={styles.cameraSection}>
           <Text style={styles.sectionTitle}>📸 Identify by Photo</Text>
           <Text style={styles.sectionSubtitle}>Take a photo or choose from gallery</Text>
           <View style={styles.cameraButtons}>
-            <ActionButton title="Take Photo" icon="camera" onPress={() => pickImage(false)} colors={[Colors.accent, '#FF8C42']} disabled={loading} />
-            <ActionButton title="Gallery" icon="images" onPress={() => pickImage(true)} colors={[Colors.success, '#20C997']} disabled={loading} />
+            <ActionButton title="Take Photo" icon="camera" onPress={() => pickImage(false)} colors={[theme.accent, theme.accentLight]} disabled={loading} />
+            <ActionButton title="Gallery" icon="images" onPress={() => pickImage(true)} colors={[theme.success, '#20C997']} disabled={loading} />
           </View>
         </MotiView>
 
-        {/* Image Preview */}
         {image && (
           <MotiView from={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} transition={{ type: 'spring', damping: 15 }} style={styles.imagePreview}>
             <Text style={styles.previewTitle}>Selected Image</Text>
             <Image source={{ uri: image }} style={styles.previewImage} />
-            <ActionButton title="Identify This Plant" icon="leaf" onPress={() => handleIdentifyPlant('image')} colors={[Colors.success, '#20C997']} />
+            <ActionButton title="Identify This Plant" icon="leaf" onPress={() => handleIdentifyPlant('image')} colors={[theme.success, '#20C997']} />
           </MotiView>
         )}
 
-        {/* Quick Access */}
         <MotiView from={{ opacity: 0, translateY: 20 }} animate={{ opacity: 1, translateY: 0 }} transition={{ duration: 600, delay: 800 }} style={styles.quickAccessSection}>
           <Text style={styles.quickAccessTitle}>🚀 Quick Access</Text>
           <View style={styles.quickAccessGrid}>
-            <QuickAccessCard title="Location Plants" subtitle="Perfect for your area" icon="location" colors={[Colors.success, '#20C997']} onPress={() => router.push('/recommendations')} />
+            <QuickAccessCard title="Location Plants" subtitle="Perfect for your area" icon="location" colors={[theme.success, '#20C997']} onPress={() => router.push('/recommendations')} />
             <QuickAccessCard title="Water Reminders" subtitle="Never miss watering" icon="water" colors={['#007CF0', '#00DFD8']} onPress={() => router.push('/reminders')} />
             <QuickAccessCard title="My Plants" subtitle="View collection" icon="leaf" colors={['#A855F7', '#EC4899']} onPress={() => router.push('/(tabs)/collection')} />
             <QuickAccessCard title="Profile" subtitle="Settings & stats" icon="person" colors={['#FF5F6D', '#FFC371']} onPress={() => router.push('/(tabs)/profile')} />
           </View>
         </MotiView>
 
-        {/* Highlights */}
         <MotiView from={{ opacity: 0, translateY: 20 }} animate={{ opacity: 1, translateY: 0 }} transition={{ duration: 600, delay: 900 }} style={styles.highlightsSection}>
           <Text style={styles.highlightsTitle}>✨ New Features</Text>
           <HighlightCard
             title="Smart Plant Recommendations"
             subtitle="Get personalized plant suggestions based on your location's climate and growing conditions"
             icon="location"
-            color={Colors.success}
+            color={theme.success}
             onPress={() => router.push('/recommendations')}
           />
           <HighlightCard
             title="Watering Reminders"
             subtitle="Set custom watering schedules for your plants and never forget to water them again"
             icon="water"
-            color={Colors.accent}
+            color={theme.accent}
             onPress={() => router.push('/reminders')}
           />
         </MotiView>
 
-        {/* Tips */}
         <MotiView from={{ opacity: 0, translateY: 20 }} animate={{ opacity: 1, translateY: 0 }} transition={{ duration: 600, delay: 1000 }} style={styles.tipsSection}>
           <Text style={styles.tipsTitle}>💡 Tips for Better Results</Text>
           <TipItem emoji="🌿" text="Capture clear, well-lit photos" />
@@ -207,7 +205,6 @@ export default function HomeScreen() {
           <TipItem emoji="📏" text="Fill the frame with the plant" />
         </MotiView>
 
-        {/* Loading Overlay */}
         {loading && (
           <View style={styles.loadingOverlay}>
             <MotiView from={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} transition={{ type: 'spring', damping: 15 }} style={styles.loadingContainer}>
@@ -222,52 +219,52 @@ export default function HomeScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.primaryLight },
+const createStyles = (theme: any) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: theme.background },
   scrollContent: { paddingBottom: 100 },
   header: { paddingHorizontal: width * 0.05, paddingTop: 60, paddingBottom: 30 },
-  greeting: { fontSize: 16, color: Colors.textSecondary, marginBottom: 5 },
-  title: { fontSize: Math.min(32, width * 0.08), fontWeight: '800', color: Colors.text, marginBottom: 8 },
-  subtitle: { fontSize: 16, color: Colors.textLight, lineHeight: 22 },
-  searchSection: { backgroundColor: Colors.card, marginHorizontal: width * 0.05, borderRadius: 20, padding: width * 0.05, marginBottom: 20, shadowColor: Colors.shadow, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 8, elevation: 3 },
-  sectionTitle: { fontSize: 18, fontWeight: '700', color: Colors.text, marginBottom: 15 },
-  sectionSubtitle: { fontSize: 14, color: Colors.textLight, marginBottom: 20 },
-  inputContainer: { flexDirection: 'row', alignItems: 'center', backgroundColor: Colors.lightGray, borderRadius: 15, paddingHorizontal: 15, marginBottom: 20, borderWidth: 1, borderColor: Colors.border },
+  greeting: { fontSize: 16, color: theme.textSecondary, marginBottom: 5 },
+  title: { fontSize: Math.min(32, width * 0.08), fontWeight: '800', color: theme.text, marginBottom: 8 },
+  subtitle: { fontSize: 16, color: theme.textLight, lineHeight: 22 },
+  searchSection: { backgroundColor: theme.card, marginHorizontal: width * 0.05, borderRadius: 20, padding: width * 0.05, marginBottom: 20, shadowColor: theme.shadow, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 8, elevation: 3 },
+  sectionTitle: { fontSize: 18, fontWeight: '700', color: theme.text, marginBottom: 15 },
+  sectionSubtitle: { fontSize: 14, color: theme.textLight, marginBottom: 20 },
+  inputContainer: { flexDirection: 'row', alignItems: 'center', backgroundColor: theme.lightGray, borderRadius: 15, paddingHorizontal: 15, marginBottom: 20, borderWidth: 1, borderColor: theme.border },
   searchIcon: { marginRight: 10 },
-  input: { flex: 1, height: 50, fontSize: 16, color: Colors.text },
+  input: { flex: 1, height: 50, fontSize: 16, color: theme.text },
   actionButton: { borderRadius: 15, overflow: 'hidden', marginTop: 10 },
   disabledButton: { opacity: 0.6 },
   buttonGradient: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 15, paddingHorizontal: 20 },
-  buttonText: { color: Colors.white, fontSize: 16, fontWeight: '600', marginRight: 8 },
+  buttonText: { color: theme.white, fontSize: 16, fontWeight: '600', marginRight: 8 },
   divider: { flexDirection: 'row', alignItems: 'center', marginHorizontal: 20, marginVertical: 20 },
-  dividerLine: { flex: 1, height: 1, backgroundColor: Colors.border },
-  dividerText: { marginHorizontal: 15, fontSize: 14, color: Colors.textLight, fontWeight: '600' },
-  cameraSection: { backgroundColor: Colors.card, marginHorizontal: width * 0.05, borderRadius: 20, padding: width * 0.05, marginBottom: 20, shadowColor: Colors.shadow, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 8, elevation: 3 },
+  dividerLine: { flex: 1, height: 1, backgroundColor: theme.border },
+  dividerText: { marginHorizontal: 15, fontSize: 14, color: theme.textLight, fontWeight: '600' },
+  cameraSection: { backgroundColor: theme.card, marginHorizontal: width * 0.05, borderRadius: 20, padding: width * 0.05, marginBottom: 20, shadowColor: theme.shadow, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 8, elevation: 3 },
   cameraButtons: { flexDirection: 'row', justifyContent: 'space-between', gap: 15 },
-  imagePreview: { backgroundColor: Colors.card, marginHorizontal: width * 0.05, borderRadius: 20, padding: width * 0.05, marginBottom: 20, alignItems: 'center', shadowColor: Colors.shadow, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 8, elevation: 3 },
-  previewTitle: { fontSize: 16, fontWeight: '600', color: Colors.text, marginBottom: 15 },
+  imagePreview: { backgroundColor: theme.card, marginHorizontal: width * 0.05, borderRadius: 20, padding: width * 0.05, marginBottom: 20, alignItems: 'center', shadowColor: theme.shadow, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 8, elevation: 3 },
+  previewTitle: { fontSize: 16, fontWeight: '600', color: theme.text, marginBottom: 15 },
   previewImage: { width: width * 0.8, height: width * 0.8, borderRadius: 15 },
-  tipsSection: { backgroundColor: Colors.cardSecondary, marginHorizontal: width * 0.05, borderRadius: 20, padding: width * 0.05, marginBottom: 20 },
-  tipsTitle: { fontSize: 16, fontWeight: '600', color: Colors.text, marginBottom: 15 },
+  tipsSection: { backgroundColor: theme.cardSecondary, marginHorizontal: width * 0.05, borderRadius: 20, padding: width * 0.05, marginBottom: 20 },
+  tipsTitle: { fontSize: 16, fontWeight: '600', color: theme.text, marginBottom: 15 },
   tip: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
   tipEmoji: { fontSize: 16, marginRight: 12 },
-  tipText: { fontSize: 14, color: Colors.textSecondary, flex: 1 },
+  tipText: { fontSize: 14, color: theme.textSecondary, flex: 1 },
   loadingContainer: { alignItems: 'center', marginTop: 20, paddingHorizontal: 20 },
-  loadingText: { marginTop: 15, fontSize: 18, color: Colors.text, fontWeight: '600' },
-  loadingSubtext: { marginTop: 5, fontSize: 14, color: Colors.textLight },
+  loadingText: { marginTop: 15, fontSize: 18, color: theme.text, fontWeight: '600' },
+  loadingSubtext: { marginTop: 5, fontSize: 14, color: theme.textLight },
   loadingOverlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(255, 255, 255, 0.9)', justifyContent: 'center', alignItems: 'center', zIndex: 1000 },
   quickAccessSection: { marginHorizontal: width * 0.05, marginBottom: 20 },
-  quickAccessTitle: { fontSize: 18, fontWeight: '700', color: Colors.text, marginBottom: 15 },
+  quickAccessTitle: { fontSize: 18, fontWeight: '700', color: theme.text, marginBottom: 15 },
   quickAccessGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
-  quickAccessCard: { width: (width - width * 0.1 - 12) / 2, borderRadius: 15, overflow: 'hidden', shadowColor: Colors.shadow, shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.15, shadowRadius: 6, elevation: 4 },
+  quickAccessCard: { width: (width - width * 0.1 - 12) / 2, borderRadius: 15, overflow: 'hidden', shadowColor: theme.shadow, shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.15, shadowRadius: 6, elevation: 4 },
   quickAccessGradient: { padding: 16, alignItems: 'center', minHeight: 100, justifyContent: 'center' },
-  quickAccessCardTitle: { color: Colors.white, fontSize: 13, fontWeight: '700', textAlign: 'center', marginTop: 6, marginBottom: 2 },
+  quickAccessCardTitle: { color: theme.white, fontSize: 13, fontWeight: '700', textAlign: 'center', marginTop: 6, marginBottom: 2 },
   quickAccessSubtitle: { color: 'rgba(255, 255, 255, 0.9)', fontSize: 11, textAlign: 'center' },
   highlightsSection: { marginHorizontal: width * 0.05, marginBottom: 20 },
-  highlightsTitle: { fontSize: 18, fontWeight: '700', color: Colors.text, marginBottom: 15 },
-  highlightCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: Colors.card, borderRadius: 15, padding: 16, marginBottom: 12, shadowColor: Colors.shadow, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4, elevation: 2 },
-  highlightIcon: { width: 50, height: 50, borderRadius: 25, backgroundColor: Colors.lightGray, alignItems: 'center', justifyContent: 'center', marginRight: 15 },
+  highlightsTitle: { fontSize: 18, fontWeight: '700', color: theme.text, marginBottom: 15 },
+  highlightCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: theme.card, borderRadius: 15, padding: 16, marginBottom: 12, shadowColor: theme.shadow, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4, elevation: 2 },
+  highlightIcon: { width: 50, height: 50, borderRadius: 25, backgroundColor: theme.lightGray, alignItems: 'center', justifyContent: 'center', marginRight: 15 },
   highlightContent: { flex: 1 },
-  highlightTitle: { fontSize: 16, fontWeight: '600', color: Colors.text, marginBottom: 4 },
-  highlightSubtitle: { fontSize: 13, color: Colors.textSecondary, lineHeight: 18 },
+  highlightTitle: { fontSize: 16, fontWeight: '600', color: theme.text, marginBottom: 4 },
+  highlightSubtitle: { fontSize: 13, color: theme.textSecondary, lineHeight: 18 },
 });

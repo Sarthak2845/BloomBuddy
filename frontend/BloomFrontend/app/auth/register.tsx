@@ -17,6 +17,7 @@ import { MotiView} from 'moti';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import Colors from '../../constants/Colors';
+import { signUp } from '../../lib/services/auth';
 
 export default function RegisterScreen() {
   const [formData, setFormData] = useState({
@@ -42,19 +43,26 @@ export default function RegisterScreen() {
       return;
     }
 
+    if (formData.password.length < 6) {
+      Alert.alert('Error', 'Password must be at least 6 characters');
+      return;
+    }
+
     if (!agreedToTerms) {
       Alert.alert('Error', 'Please agree to the terms and conditions');
       return;
     }
 
     setLoading(true);
-    // Simulate registration
-    setTimeout(() => {
+    try {
+      await signUp(formData.email, formData.password, formData.name);
+      Alert.alert('Success', 'Account created successfully!');
+      // Router will automatically redirect via _layout.tsx
+    } catch (error: any) {
+      Alert.alert('Registration Failed', error.message || 'Please try again');
+    } finally {
       setLoading(false);
-      Alert.alert('Success', 'Account created successfully!', [
-        { text: 'OK', onPress: () => router.replace('/(tabs)/home') }
-      ]);
-    }, 1500);
+    }
   };
 
   const updateFormData = (field: string, value: string) => {

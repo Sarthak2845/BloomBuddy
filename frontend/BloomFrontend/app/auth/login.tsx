@@ -16,6 +16,7 @@ import { MotiView} from 'moti';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import Colors from '../../constants/Colors';
+import { signIn } from '../../lib/services/auth';
 
 export default function LoginScreen() {
   const [email, setEmail] = useState('');
@@ -31,11 +32,14 @@ export default function LoginScreen() {
     }
 
     setLoading(true);
-    // Simulate login
-    setTimeout(() => {
+    try {
+      await signIn(email, password);
+      // Router will automatically redirect via _layout.tsx
+    } catch (error: any) {
+      Alert.alert('Login Failed', error.message || 'Please check your credentials');
+    } finally {
       setLoading(false);
-      router.replace('/(tabs)/home');
-    }, 1500);
+    }
   };
 
   return (
