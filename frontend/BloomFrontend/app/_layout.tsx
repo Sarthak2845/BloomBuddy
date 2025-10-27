@@ -26,9 +26,11 @@ export default function RootLayout() {
 
     const inAuthGroup = segments[0] === 'auth';
     const inTabsGroup = segments[0] === '(tabs)';
+    const allowedRoutes = ['recommendations', 'reminders', 'plant-detail'];
+    const isAllowedRoute = allowedRoutes.includes(segments[0] as string);
 
-    if (user && !inTabsGroup) {
-      // User is signed in but not in tabs, redirect to home
+    if (user && !inTabsGroup && !isAllowedRoute && segments[0] !== 'index') {
+      // User is signed in but not in tabs or allowed routes, redirect to home
       router.replace('/(tabs)/home');
     } else if (!user && !inAuthGroup && segments[0] !== 'index') {
       // User is not signed in and trying to access protected routes
@@ -50,6 +52,9 @@ export default function RootLayout() {
         <Stack.Screen name="index" />
         <Stack.Screen name="auth" />
         <Stack.Screen name="(tabs)" />
+        <Stack.Screen name="recommendations" />
+        <Stack.Screen name="reminders" />
+        <Stack.Screen name="plant-detail" />
       </Stack>
     </ThemeProvider>
   );

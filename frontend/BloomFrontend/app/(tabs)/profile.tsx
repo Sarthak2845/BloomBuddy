@@ -194,9 +194,14 @@ export default function ProfileScreen() {
       action: () => Alert.alert('Coming Soon', 'Profile editing will be available soon!'),
     },
     {
+      title: 'Plant Recommendations',
+      icon: 'leaf-outline',
+      action: () => router.push('/recommendations'),
+    },
+    {
       title: 'Plant Care Reminders',
       icon: 'notifications-outline',
-      action: () => Alert.alert('Coming Soon', 'Care reminders will be available soon!'),
+      action: () => router.push('/reminders'),
     },
     {
       title: 'Achievements',
