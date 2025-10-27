@@ -16,9 +16,9 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { getAuth } from 'firebase/auth';
-import Colors from '../../constants/Colors';
-import { getUserProfile, updateUserProfile, logOut, UserProfile } from '@/lib/services/auth';
-import { getUserPlants } from '@/lib/services/plantService';
+import { getUserProfile, updateUserProfile, logOut, UserProfile, generateProfilePicture } from '@/lib/services/auth';
+import { useTheme } from '../../contexts/ThemeContext';
+import { getUserPlants, getUserPlantsCount } from '@/lib/services/plantService';
 import Loading from '@/components/Loading';
 
 interface ProfileStat {
@@ -27,8 +27,6 @@ interface ProfileStat {
   icon: string;
   color: string;
 }
-
-
 
 interface MenuItem {
   title: string;
@@ -45,6 +43,9 @@ export default function ProfileScreen() {
   const [plantCount, setPlantCount] = useState(0);
   const router = useRouter();
   const auth = getAuth();
+  const { theme, isDark, toggleTheme } = useTheme();
+
+  const styles = createStyles(theme);
 
   useEffect(() => {
     loadUserData();
@@ -53,37 +54,24 @@ export default function ProfileScreen() {
   const loadUserData = async () => {
     try {
       const user = auth.currentUser;
+      
       if (!user) {
-        // Create anonymous profile for demo
-        const anonymousProfile: UserProfile = {
-          uid: 'anonymous',
-          email: 'guest@bloombuddy.com',
-          displayName: 'Plant Enthusiast',
-          bio: '🌱 Discovering the world of plants',
-          plantsIdentified: 0,
-          daysActive: 1,
-          achievements: [],
-          streak: 0,
-          joinedAt: new Date(),
-          lastActive: new Date(),
-          preferences: {
-            notifications: true,
-            darkMode: false,
-            language: 'en'
-          }
-        };
-        setUserProfile(anonymousProfile);
+        setUserProfile(null);
         setPlantCount(0);
         return;
       }
 
       let profile = await getUserProfile(user.uid);
+      
       if (!profile) {
-        // Create profile for anonymous user
+        const displayName = user.displayName || 'Plant Lover';
+        const photoURL = user.photoURL || generateProfilePicture(displayName);
+        
         profile = {
           uid: user.uid,
-          email: user.email || 'anonymous@bloombuddy.com',
-          displayName: user.displayName || 'Plant Lover',
+          email: user.email || 'user@bloombuddy.com',
+          displayName,
+          photoURL,
           bio: '🌱 Plant enthusiast & nature lover',
           plantsIdentified: 0,
           daysActive: 1,
@@ -97,32 +85,30 @@ export default function ProfileScreen() {
             language: 'en'
           }
         };
+        
+        try {
+          await updateUserProfile(user.uid, profile);
+        } catch (saveError) {
+          console.log('Could not save new profile:', saveError);
+        }
+      } else {
+        if (!profile.photoURL) {
+          profile.photoURL = generateProfilePicture(profile.displayName || profile.email);
+          try {
+            await updateUserProfile(user.uid, { photoURL: profile.photoURL });
+          } catch (updateError) {
+            console.log('Could not update profile photo:', updateError);
+          }
+        }
       }
+      
       setUserProfile(profile);
-
-      const plants = await getUserPlants(user.uid);
-      setPlantCount(plants.length);
+      const count = await getUserPlantsCount(user.uid);
+      setPlantCount(count);
+      
     } catch (error) {
       console.error('Error loading user data:', error);
-      // Fallback profile
-      const fallbackProfile: UserProfile = {
-        uid: 'fallback',
-        email: 'user@bloombuddy.com',
-        displayName: 'Plant Lover',
-        bio: '🌱 Welcome to BloomBuddy!',
-        plantsIdentified: 0,
-        daysActive: 1,
-        achievements: [],
-        streak: 0,
-        joinedAt: new Date(),
-        lastActive: new Date(),
-        preferences: {
-          notifications: true,
-          darkMode: false,
-          language: 'en'
-        }
-      };
-      setUserProfile(fallbackProfile);
+      setUserProfile(null);
       setPlantCount(0);
     } finally {
       setLoading(false);
@@ -136,22 +122,14 @@ export default function ProfileScreen() {
   };
 
   const updatePreference = async (key: keyof UserProfile['preferences'], value: any) => {
-    if (!userProfile) return;
+    if (!userProfile || !auth.currentUser) return;
     
     try {
       const updatedPreferences = { ...userProfile.preferences, [key]: value };
-      
-      // Only update in Firestore if user is authenticated
-      if (auth.currentUser && userProfile.uid !== 'anonymous' && userProfile.uid !== 'fallback') {
-        await updateUserProfile(userProfile.uid, { preferences: updatedPreferences });
-      }
-      
+      await updateUserProfile(userProfile.uid, { preferences: updatedPreferences });
       setUserProfile({ ...userProfile, preferences: updatedPreferences });
     } catch (error) {
       console.error('Error updating preference:', error);
-      // Still update locally even if Firestore fails
-      const updatedPreferences = { ...userProfile.preferences, [key]: value };
-      setUserProfile({ ...userProfile, preferences: updatedPreferences });
     }
   };
 
@@ -197,19 +175,16 @@ export default function ProfileScreen() {
   if (!userProfile) {
     return (
       <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
-        <Text style={styles.errorText}>Failed to load profile</Text>
-        <TouchableOpacity onPress={loadUserData} style={styles.retryButton}>
-          <Text style={styles.retryText}>Retry</Text>
-        </TouchableOpacity>
+        <Loading message="Loading your profile..." />
       </View>
     );
   }
 
   const profileStats: ProfileStat[] = [
-    { label: 'Plants Identified', value: plantCount.toString(), icon: 'leaf', color: Colors.success },
-    { label: 'Days Active', value: calculateDaysActive().toString(), icon: 'calendar', color: Colors.info },
-    { label: 'Achievements', value: (userProfile.achievements || []).length.toString(), icon: 'trophy', color: Colors.warning },
-    { label: 'Streak', value: (userProfile.streak || 0).toString(), icon: 'flame', color: Colors.error },
+    { label: 'Plants Identified', value: plantCount.toString(), icon: 'leaf', color: theme.success },
+    { label: 'Days Active', value: calculateDaysActive().toString(), icon: 'calendar', color: theme.info },
+    { label: 'Achievements', value: (userProfile.achievements || []).length.toString(), icon: 'trophy', color: theme.warning },
+    { label: 'Streak', value: (userProfile.streak || 0).toString(), icon: 'flame', color: theme.error },
   ];
 
   const menuItems: MenuItem[] = [
@@ -252,13 +227,13 @@ export default function ProfileScreen() {
       title: 'Logout',
       icon: 'log-out-outline',
       action: handleLogout,
-      color: Colors.error,
+      color: theme.error,
     },
   ];
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor={Colors.primary} />
+      <StatusBar barStyle={isDark ? "light-content" : "dark-content"} backgroundColor={theme.primary} />
       
       <ScrollView 
         style={styles.scrollView} 
@@ -267,14 +242,13 @@ export default function ProfileScreen() {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            colors={[Colors.primary]}
-            tintColor={Colors.primary}
+            colors={[theme.primary]}
+            tintColor={theme.primary}
           />
         }
       >
-        {/* Header with Profile Info */}
         <LinearGradient
-          colors={[Colors.primary, Colors.primaryLight, Colors.secondary]}
+          colors={[theme.primary, theme.primaryLight, theme.secondary]}
           style={styles.header}
         >
           <MotiView
@@ -285,16 +259,16 @@ export default function ProfileScreen() {
           >
             <View style={styles.avatarContainer}>
               <LinearGradient
-                colors={[Colors.accent, '#FF8C42']}
+                colors={[theme.accent, theme.accentLight]}
                 style={styles.avatarGradient}
               >
                 <Image
-                  source={{ uri: 'https://images.unsplash.com/photo-1494790108755-2616b612b786?w=200' }}
+                  source={{ uri: userProfile?.photoURL || generateProfilePicture(userProfile?.displayName || 'User') }}
                   style={styles.avatar}
                 />
               </LinearGradient>
               <TouchableOpacity style={styles.editAvatarButton}>
-                <Ionicons name="camera" size={16} color={Colors.white} />
+                <Ionicons name="camera" size={16} color={theme.white} />
               </TouchableOpacity>
             </View>
             
@@ -302,33 +276,8 @@ export default function ProfileScreen() {
             <Text style={styles.userEmail}>{userProfile.email}</Text>
             <Text style={styles.userBio}>{userProfile.bio || '🌱 Plant enthusiast & nature lover'}</Text>
           </MotiView>
-
-          {/* Floating Elements */}
-          {[...Array(5)].map((_, i) => (
-            <MotiView
-              key={i}
-              from={{ translateY: -20, opacity: 0 }}
-              animate={{ translateY: 20, opacity: 0.3 }}
-              transition={{
-                type: 'timing',
-                duration: 3000 + i * 500,
-                loop: true,
-                delay: i * 800,
-                repeatReverse: true,
-              }}
-              style={[styles.floatingElement, { 
-                left: 30 + i * 70, 
-                top: 50 + (i % 2) * 100 
-              }]}
-            >
-              <Text style={styles.floatingEmoji}>
-                {['🌿', '🌸', '🍃', '🌺', '🌻'][i]}
-              </Text>
-            </MotiView>
-          ))}
         </LinearGradient>
 
-        {/* Stats Section */}
         <MotiView
           from={{ opacity: 0, translateY: 30 }}
           animate={{ opacity: 1, translateY: 0 }}
@@ -353,7 +302,7 @@ export default function ProfileScreen() {
                   colors={[stat.color, `${stat.color}CC`]}
                   style={styles.statGradient}
                 >
-                  <Ionicons name={stat.icon as any} size={24} color={Colors.white} />
+                  <Ionicons name={stat.icon as any} size={24} color={theme.white} />
                   <Text style={styles.statValue}>{stat.value}</Text>
                   <Text style={styles.statLabel}>{stat.label}</Text>
                 </LinearGradient>
@@ -362,7 +311,6 @@ export default function ProfileScreen() {
           </View>
         </MotiView>
 
-        {/* Settings Section */}
         <MotiView
           from={{ opacity: 0, translateY: 20 }}
           animate={{ opacity: 1, translateY: 0 }}
@@ -371,18 +319,17 @@ export default function ProfileScreen() {
         >
           <Text style={styles.sectionTitle}>Settings</Text>
           
-          {/* Toggle Settings */}
           <View style={styles.settingsCard}>
             <View style={styles.settingItem}>
               <View style={styles.settingLeft}>
-                <Ionicons name="notifications-outline" size={20} color={Colors.primary} />
+                <Ionicons name="notifications-outline" size={20} color={theme.primary} />
                 <Text style={styles.settingTitle}>Push Notifications</Text>
               </View>
               <Switch
                 value={userProfile.preferences?.notifications || false}
                 onValueChange={(value) => updatePreference('notifications', value)}
-                trackColor={{ false: Colors.lightGray, true: Colors.primaryLight }}
-                thumbColor={userProfile.preferences?.notifications ? Colors.primary : Colors.gray}
+                trackColor={{ false: theme.lightGray, true: theme.primaryLight }}
+                thumbColor={userProfile.preferences?.notifications ? theme.primary : theme.gray}
               />
             </View>
             
@@ -390,20 +337,19 @@ export default function ProfileScreen() {
             
             <View style={styles.settingItem}>
               <View style={styles.settingLeft}>
-                <Ionicons name="moon-outline" size={20} color={Colors.primary} />
+                <Ionicons name="moon-outline" size={20} color={theme.primary} />
                 <Text style={styles.settingTitle}>Dark Mode</Text>
               </View>
               <Switch
-                value={userProfile.preferences?.darkMode || false}
-                onValueChange={(value) => updatePreference('darkMode', value)}
-                trackColor={{ false: Colors.lightGray, true: Colors.primaryLight }}
-                thumbColor={userProfile.preferences?.darkMode ? Colors.primary : Colors.gray}
+                value={isDark}
+                onValueChange={toggleTheme}
+                trackColor={{ false: theme.lightGray, true: theme.primaryLight }}
+                thumbColor={isDark ? theme.primary : theme.gray}
               />
             </View>
           </View>
         </MotiView>
 
-        {/* Menu Section */}
         <MotiView
           from={{ opacity: 0, translateY: 20 }}
           animate={{ opacity: 1, translateY: 0 }}
@@ -423,7 +369,7 @@ export default function ProfileScreen() {
                     <Ionicons 
                       name={item.icon as any} 
                       size={20} 
-                      color={item.color || Colors.textSecondary} 
+                      color={item.color || theme.textSecondary} 
                     />
                     <Text style={[
                       styles.menuTitle,
@@ -435,7 +381,7 @@ export default function ProfileScreen() {
                   <Ionicons 
                     name="chevron-forward" 
                     size={16} 
-                    color={Colors.textLight} 
+                    color={theme.textLight} 
                   />
                 </TouchableOpacity>
                 {index < menuItems.length - 1 && <View style={styles.menuDivider} />}
@@ -444,7 +390,6 @@ export default function ProfileScreen() {
           </View>
         </MotiView>
 
-        {/* App Version */}
         <MotiView
           from={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -461,10 +406,10 @@ export default function ProfileScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme: any) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.primaryLight,
+    backgroundColor: theme.background,
   },
   scrollView: {
     flex: 1,
@@ -496,19 +441,19 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: 0,
     right: 0,
-    backgroundColor: Colors.primary,
+    backgroundColor: theme.primary,
     borderRadius: 16,
     width: 32,
     height: 32,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 3,
-    borderColor: Colors.white,
+    borderColor: theme.white,
   },
   userName: {
     fontSize: 24,
     fontWeight: '800',
-    color: Colors.white,
+    color: theme.white,
     marginBottom: 4,
   },
   userEmail: {
@@ -521,13 +466,6 @@ const styles = StyleSheet.create({
     color: 'rgba(255, 255, 255, 0.9)',
     textAlign: 'center',
   },
-  floatingElement: {
-    position: 'absolute',
-  },
-  floatingEmoji: {
-    fontSize: 20,
-    opacity: 0.6,
-  },
   statsSection: {
     paddingHorizontal: 20,
     marginTop: -20,
@@ -536,7 +474,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 20,
     fontWeight: '700',
-    color: Colors.text,
+    color: theme.text,
     marginBottom: 16,
   },
   statsGrid: {
@@ -557,7 +495,7 @@ const styles = StyleSheet.create({
   statValue: {
     fontSize: 24,
     fontWeight: '800',
-    color: Colors.white,
+    color: theme.white,
     marginTop: 8,
     marginBottom: 4,
   },
@@ -572,10 +510,10 @@ const styles = StyleSheet.create({
     marginBottom: 30,
   },
   settingsCard: {
-    backgroundColor: Colors.card,
+    backgroundColor: theme.card,
     borderRadius: 16,
     padding: 20,
-    shadowColor: Colors.shadow,
+    shadowColor: theme.shadow,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 8,
@@ -593,13 +531,13 @@ const styles = StyleSheet.create({
   },
   settingTitle: {
     fontSize: 16,
-    color: Colors.text,
+    color: theme.text,
     marginLeft: 12,
     fontWeight: '600',
   },
   settingDivider: {
     height: 1,
-    backgroundColor: Colors.border,
+    backgroundColor: theme.border,
     marginVertical: 16,
   },
   menuSection: {
@@ -607,10 +545,10 @@ const styles = StyleSheet.create({
     marginBottom: 30,
   },
   menuCard: {
-    backgroundColor: Colors.card,
+    backgroundColor: theme.card,
     borderRadius: 16,
     padding: 4,
-    shadowColor: Colors.shadow,
+    shadowColor: theme.shadow,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 8,
@@ -629,13 +567,13 @@ const styles = StyleSheet.create({
   },
   menuTitle: {
     fontSize: 16,
-    color: Colors.text,
+    color: theme.text,
     marginLeft: 12,
     fontWeight: '500',
   },
   menuDivider: {
     height: 1,
-    backgroundColor: Colors.border,
+    backgroundColor: theme.border,
     marginLeft: 48,
   },
   versionSection: {
@@ -645,31 +583,14 @@ const styles = StyleSheet.create({
   },
   versionText: {
     fontSize: 14,
-    color: Colors.textLight,
+    color: theme.textLight,
     marginBottom: 4,
   },
   versionSubtext: {
     fontSize: 12,
-    color: Colors.textLight,
+    color: theme.textLight,
   },
   bottomPadding: {
     height: 120,
-  },
-  errorText: {
-    fontSize: 18,
-    color: Colors.error,
-    textAlign: 'center',
-    marginBottom: 20,
-  },
-  retryButton: {
-    backgroundColor: Colors.primary,
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderRadius: 12,
-  },
-  retryText: {
-    color: Colors.white,
-    fontSize: 16,
-    fontWeight: '600',
   },
 });

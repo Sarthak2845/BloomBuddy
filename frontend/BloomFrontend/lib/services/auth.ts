@@ -21,19 +21,33 @@ export interface UserProfile {
   };
 }
 
+// Generate profile picture URL using UI Avatars (PNG format, better for React Native)
+export function generateProfilePicture(name: string): string {
+  const cleanName = (name || 'User').trim();
+  const initials = cleanName.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
+  const colors = ['FF6B6B', '4ECDC4', '45B7D1', '96CEB4', 'FFEAA7', 'DDA0DD', 'FFB347', '87CEEB'];
+  const bgColor = colors[cleanName.length % colors.length];
+  return `https://ui-avatars.com/api/?name=${encodeURIComponent(initials)}&background=${bgColor}&color=fff&size=200&font-size=0.6&bold=true`;
+}
+
 export const signUp = async (email: string, password: string, displayName: string) => {
   try {
     const userCredential = await createUserWithEmailAndPassword(auth, email, password);
     const user = userCredential.user;
     
+    // Generate profile picture
+    const photoURL = generateProfilePicture(displayName);
+    
     // Update auth profile
-    await updateProfile(user, { displayName });
+    await updateProfile(user, { displayName, photoURL });
     
     // Create user document in Firestore
     const userProfile: UserProfile = {
       uid: user.uid,
       email: user.email!,
       displayName,
+      photoURL,
+      bio: '🌱 Plant enthusiast & nature lover',
       plantsIdentified: 0,
       daysActive: 1,
       achievements: [],
@@ -75,7 +89,18 @@ export const getUserProfile = async (uid: string): Promise<UserProfile | null> =
     const docSnap = await getDoc(docRef);
     
     if (docSnap.exists()) {
-      return docSnap.data() as UserProfile;
+      const profile = docSnap.data() as UserProfile;
+      // Ensure profile has a photo URL
+      if (!profile.photoURL) {
+        profile.photoURL = generateProfilePicture(profile.displayName || profile.email);
+        // Update the profile with the generated photo URL
+        try {
+          await updateDoc(docRef, { photoURL: profile.photoURL });
+        } catch (updateError) {
+          console.log('Could not update profile photo URL:', updateError);
+        }
+      }
+      return profile;
     }
     return null;
   } catch (error) {
@@ -86,10 +111,28 @@ export const getUserProfile = async (uid: string): Promise<UserProfile | null> =
 
 export const updateUserProfile = async (uid: string, updates: Partial<UserProfile>) => {
   try {
+    // If displayName is being updated, also update photoURL
+    if (updates.displayName && !updates.photoURL) {
+      updates.photoURL = generateProfilePicture(updates.displayName);
+    }
+    
+    // Ensure photoURL is always present
+    if (!updates.photoURL && updates.displayName) {
+      updates.photoURL = generateProfilePicture(updates.displayName);
+    }
+    
     await updateDoc(doc(db, 'users', uid), {
       ...updates,
       lastActive: serverTimestamp()
     });
+    
+    // Also update Firebase Auth profile if displayName or photoURL changed
+    if (auth.currentUser && (updates.displayName || updates.photoURL)) {
+      await updateProfile(auth.currentUser, {
+        displayName: updates.displayName || auth.currentUser.displayName,
+        photoURL: updates.photoURL || auth.currentUser.photoURL
+      });
+    }
   } catch (error) {
     console.error('Error updating user profile:', error);
     throw error;
@@ -110,6 +153,9 @@ export const incrementPlantCount = async (uid: string) => {
     console.error('Error incrementing plant count:', error);
   }
 };
+
+// Create or get guest user profile
+
 
 export const logOut = async () => {
   try {

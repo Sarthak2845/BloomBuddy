@@ -20,7 +20,7 @@ import Colors from '../constants/Colors';
 import { 
   getPlantById, 
   updatePlantRecord, 
-  deletePlantRecord, 
+  deletePlantRecordById, 
   toggleFavorite, 
   addPlantNote, 
   addPlantTags,
@@ -105,7 +105,7 @@ export default function PlantDetailScreen() {
           onPress: async () => {
             try {
               if (plant?.id) {
-                await deletePlantRecord(plant.id);
+                await deletePlantRecordById(plant.id);
                 router.back();
               }
             } catch (error) {
