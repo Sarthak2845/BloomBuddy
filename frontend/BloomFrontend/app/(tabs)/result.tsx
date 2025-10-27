@@ -7,34 +7,43 @@ import {
   TouchableOpacity, 
   StatusBar,
   Share,
-  Alert
+  Alert,
+  Image,
+  Dimensions
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { MotiView } from 'moti';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import Colors from '../../constants/Colors';
-import PlantCard from '../../components/PlantCard';
+const { width } = Dimensions.get('window');
 
 export default function ResultScreen() {
   const router = useRouter();
-  const { 
-    name, 
-    scientific, 
-    family, 
-    region, 
-    description, 
-    careInstructions,
-    toxicity,
-    difficulty,
-    img 
-  } = useLocalSearchParams();
+  const { plantData, imageUri, source } = useLocalSearchParams();
+  
+  const result = plantData ? JSON.parse(plantData as string) : null;
+  
+  if (!result) {
+    return (
+      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+        <Text style={styles.errorText}>No plant data available</Text>
+        <TouchableOpacity onPress={() => router.back()} style={styles.backToHomeButton}>
+          <Text style={styles.backToHomeText}>Go Back</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+  
+  const plantInfo = result.ai;
+  const plantNetInfo = result.plantnet;
 
   const handleShare = async () => {
     try {
+      const commonName = plantInfo.common_names?.[0] || plantInfo.scientific_name;
       await Share.share({
-        message: `Check out this plant I identified with BloomBuddy!\n\n🌱 ${name}\n🔬 ${scientific}\n🌿 Family: ${family}\n\n${description}`,
-        title: `${name} - Plant Identification`,
+        message: `Check out this plant I identified with BloomBuddy!\n\n🌱 ${commonName}\n🔬 ${plantInfo.scientific_name}\n🌿 Family: ${plantInfo.family}\n\n${plantInfo.short_description}`,
+        title: `${commonName} - Plant Identification`,
       });
     } catch (error) {
       Alert.alert('Error', 'Unable to share at this time');
@@ -92,18 +101,75 @@ export default function ResultScreen() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* Plant Card */}
-        <PlantCard
-          name={name as string}
-          scientific={scientific as string}
-          family={family as string}
-          region={region as string}
-          description={description as string}
-          careInstructions={careInstructions as string}
-          toxicity={toxicity as string}
-          difficulty={difficulty as string}
-          image={img as string}
-        />
+        {/* Plant Information Card */}
+        <MotiView
+          from={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ type: 'spring', damping: 15, delay: 200 }}
+          style={styles.plantCard}
+        >
+          {imageUri && (
+            <Image source={{ uri: imageUri as string }} style={styles.plantImage} />
+          )}
+          
+          <View style={styles.plantInfo}>
+            <Text style={styles.plantName}>
+              {plantInfo.common_names?.[0] || plantInfo.scientific_name}
+            </Text>
+            <Text style={styles.scientificName}>{plantInfo.scientific_name}</Text>
+            <Text style={styles.family}>Family: {plantInfo.family}</Text>
+            <Text style={styles.confidence}>
+              Confidence: {Math.round((plantNetInfo.score || 0) * 100)}%
+            </Text>
+            
+            <Text style={styles.description}>{plantInfo.short_description}</Text>
+            
+            {/* Care Instructions */}
+            <View style={styles.careSection}>
+              <Text style={styles.careTitle}>🌱 Care Instructions</Text>
+              <View style={styles.careGrid}>
+                <View style={styles.careItem}>
+                  <Text style={styles.careLabel}>💧 Watering</Text>
+                  <Text style={styles.careValue}>{plantInfo.care?.watering}</Text>
+                </View>
+                <View style={styles.careItem}>
+                  <Text style={styles.careLabel}>☀️ Sunlight</Text>
+                  <Text style={styles.careValue}>{plantInfo.care?.sunlight}</Text>
+                </View>
+                <View style={styles.careItem}>
+                  <Text style={styles.careLabel}>🌱 Soil</Text>
+                  <Text style={styles.careValue}>{plantInfo.care?.soil}</Text>
+                </View>
+                <View style={styles.careItem}>
+                  <Text style={styles.careLabel}>🌡️ Temperature</Text>
+                  <Text style={styles.careValue}>{plantInfo.care?.temperature}</Text>
+                </View>
+              </View>
+            </View>
+            
+            {/* Additional Info */}
+            {plantInfo.pet_friendly && (
+              <View style={styles.infoSection}>
+                <Text style={styles.infoTitle}>🐕 Pet Safety</Text>
+                <Text style={styles.infoText}>{plantInfo.pet_friendly}</Text>
+              </View>
+            )}
+            
+            {plantInfo.medicinal_use && (
+              <View style={styles.infoSection}>
+                <Text style={styles.infoTitle}>💊 Medicinal Uses</Text>
+                <Text style={styles.infoText}>{plantInfo.medicinal_use}</Text>
+              </View>
+            )}
+            
+            {plantInfo.recommended_action && (
+              <View style={styles.recommendationSection}>
+                <Text style={styles.recommendationTitle}>💡 Recommendation</Text>
+                <Text style={styles.recommendationText}>{plantInfo.recommended_action}</Text>
+              </View>
+            )}
+          </View>
+        </MotiView>
 
         {/* Action Buttons */}
         <MotiView
@@ -126,7 +192,10 @@ export default function ResultScreen() {
           </TouchableOpacity>
 
           <View style={styles.secondaryActions}>
-            <TouchableOpacity style={styles.secondaryAction}>
+            <TouchableOpacity 
+              style={styles.secondaryAction}
+              onPress={() => router.push('/(tabs)/collection')}
+            >
               <View style={styles.secondaryActionContent}>
                 <Ionicons name="library" size={20} color={Colors.primary} />
                 <Text style={styles.secondaryActionText}>View Collection</Text>
@@ -316,5 +385,133 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
     flex: 1,
     lineHeight: 18,
+  },
+  plantCard: {
+    backgroundColor: Colors.card,
+    marginHorizontal: 20,
+    marginTop: 20,
+    borderRadius: 20,
+    overflow: 'hidden',
+    shadowColor: Colors.shadow,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  plantImage: {
+    width: '100%',
+    height: 200,
+    resizeMode: 'cover',
+  },
+  plantInfo: {
+    padding: 20,
+  },
+  plantName: {
+    fontSize: 24,
+    fontWeight: '800',
+    color: Colors.text,
+    marginBottom: 4,
+  },
+  scientificName: {
+    fontSize: 16,
+    fontStyle: 'italic',
+    color: Colors.textSecondary,
+    marginBottom: 8,
+  },
+  family: {
+    fontSize: 14,
+    color: Colors.textLight,
+    marginBottom: 4,
+  },
+  confidence: {
+    fontSize: 14,
+    color: Colors.success,
+    fontWeight: '600',
+    marginBottom: 16,
+  },
+  description: {
+    fontSize: 16,
+    color: Colors.textSecondary,
+    lineHeight: 22,
+    marginBottom: 20,
+  },
+  careSection: {
+    marginBottom: 20,
+  },
+  careTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: Colors.text,
+    marginBottom: 12,
+  },
+  careGrid: {
+    gap: 12,
+  },
+  careItem: {
+    backgroundColor: Colors.lightGray,
+    borderRadius: 12,
+    padding: 12,
+  },
+  careLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: Colors.text,
+    marginBottom: 4,
+  },
+  careValue: {
+    fontSize: 14,
+    color: Colors.textSecondary,
+    lineHeight: 18,
+  },
+  infoSection: {
+    marginBottom: 16,
+    backgroundColor: Colors.cardSecondary,
+    borderRadius: 12,
+    padding: 12,
+  },
+  infoTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: Colors.text,
+    marginBottom: 6,
+  },
+  infoText: {
+    fontSize: 14,
+    color: Colors.textSecondary,
+    lineHeight: 18,
+  },
+  recommendationSection: {
+    backgroundColor: Colors.primaryLight,
+    borderRadius: 12,
+    padding: 16,
+    marginTop: 8,
+  },
+  recommendationTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: Colors.primary,
+    marginBottom: 8,
+  },
+  recommendationText: {
+    fontSize: 14,
+    color: Colors.text,
+    lineHeight: 18,
+  },
+  errorText: {
+    fontSize: 18,
+    color: Colors.error,
+    textAlign: 'center',
+    marginBottom: 20,
+  },
+  backToHomeButton: {
+    backgroundColor: Colors.primary,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 12,
+  },
+  backToHomeText: {
+    color: Colors.white,
+    fontSize: 16,
+    fontWeight: '600',
   },
 });

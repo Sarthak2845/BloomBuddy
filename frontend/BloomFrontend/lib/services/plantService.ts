@@ -1,155 +1,357 @@
-import { getFirestore, collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { getFirestore, collection, addDoc, serverTimestamp, getDocs, query, orderBy, limit, doc, updateDoc, deleteDoc, getDoc, where } from 'firebase/firestore';
 import { getAuth } from 'firebase/auth';
-import { getAppId } from '../firebase/config';
+import { db } from '../firebase/config';
 import axios, { isAxiosError } from 'axios';
-import {GoogleGenAI } from '@google/generative-ai';
+import { incrementPlantCount } from './auth';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const PLANTNET_IDENTIFY_URL = `https://my-api.plantnet.org/v2/identify/all?api-key=${process.env.PLANTNET_API_KEY}`;
-
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-
-interface GeoLocation {
-    lat: number;
-    lng: number;
+// Generate a persistent device ID
+async function getDeviceId(): Promise<string> {
+    try {
+        let deviceId = await AsyncStorage.getItem('device_id');
+        if (!deviceId) {
+            deviceId = 'device_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+            await AsyncStorage.setItem('device_id', deviceId);
+        }
+        return deviceId;
+    } catch (error) {
+        // Fallback if AsyncStorage fails
+        return 'device_' + Date.now();
+    }
 }
-interface ClientMetadata {
-    imageUrl: string;
-    uploadedAt: string;
-    geolocation: GeoLocation;
-}
+
+// Use different URLs for different environments
+// For Android emulator, use 10.0.2.2 instead of localhost
+const API_BASE_URL = 'https://bloombackend-omega.vercel.app'; // Production
+
 interface ImageFile {
     uri: string;
     name: string;
     type: string;
 }
 
-export async function processPlantPhoto(
-    imageFile: ImageFile,
-    metadata: ClientMetadata
-) {
-    const auth = getAuth();
-    const userId = auth.currentUser?.uid;
-    const appId = getAppId();
+interface PlantIdentificationResult {
+    plantnet: {
+        raw: any;
+        best_result: any;
+        scientific_name: string;
+        common_names: string[];
+        family: string;
+        score: number;
+    };
+    ai: {
+        scientific_name: string;
+        common_names: string[];
+        family: string;
+        category: string;
+        short_description: string;
+        care: {
+            watering: string;
+            sunlight: string;
+            soil: string;
+            temperature: string;
+            fertilizer: string;
+            pruning: string;
+        };
+        pests_and_diseases: string;
+        medicinal_use: string;
+        pet_friendly: string;
+        typical_health_issues: string;
+        recommended_action: string;
+    };
+}
 
-    if (!userId) {
-        console.error("User is not authenticated. Cannot save data.");
-        throw new Error("Authentication required.");
-    }
+export interface PlantRecord {
+    id?: string;
+    scientific_name: string;
+    common_names: string[];
+    family: string;
+    category: string;
+    description: string;
+    care_instructions: {
+        watering: string;
+        sunlight: string;
+        soil: string;
+        temperature: string;
+        fertilizer: string;
+        pruning: string;
+    };
+    health_info: {
+        pests_and_diseases: string;
+        typical_issues: string;
+        recommended_action: string;
+    };
+    additional_info: {
+        medicinal_use: string;
+        pet_friendly: string;
+        edible_parts?: string[];
+        toxicity_level?: string;
+    };
+    identification_data: {
+        confidence_score: number;
+        source: 'camera' | 'gallery' | 'manual';
+        identified_at: any;
+    };
+    media: {
+        primary_image: string;
+        additional_images?: string[];
+    };
+    user_notes?: string;
+    is_favorite: boolean;
+    tags: string[];
+    location?: {
+        latitude: number;
+        longitude: number;
+        address?: string;
+    };
+    created_at: any;
+    updated_at: any;
+    user_id: string;
+}
 
-    let scientificName: string | null = null;
-    let careData: any = null;
+export async function identifyPlant(imageFiles: ImageFile[], organs?: string[]): Promise<PlantIdentificationResult> {
     try {
         const formData = new FormData();
-        formData.append('images', {
-            uri: imageFile.uri,
-            name: imageFile.name,
-            type: imageFile.type,
-        } as any);
-        formData.append('organs', 'leaf');
-        formData.append('organs', 'flower');
-
-        const response = await axios.post(PLANTNET_IDENTIFY_URL, formData, {
-            headers: {
-                'Accept': 'application/json',
-            },
+        
+        imageFiles.forEach((file, index) => {
+            const organ = organs?.[index] || 'leaf';
+            formData.append('organs', organ);
+            
+            // React Native FormData format
+            formData.append('images', {
+                uri: file.uri,
+                name: file.name || 'image.jpg',
+                type: file.type || 'image/jpeg',
+            } as any);
         });
 
-        const data = response.data;
+        console.log('Sending request to:', `${API_BASE_URL}/api/identify`);
+        console.log('FormData entries:', imageFiles.length);
 
-        if (data.results && data.results.length > 0) {
-            const bestResult = data.results[0];
-            scientificName = bestResult.species?.scientificNameWithoutAuthor || bestResult.species?.commonNames?.[0] || 'Unknown Species';
-
-        } else {
-            throw new Error("Pl@ntNet identification failed: No results returned.");
-        }
-
-    } catch (error) {
-        const errorDetail = isAxiosError(error) ? error.response?.data?.message || error.message : (error as Error).message;
-        console.error("Pl@ntNet API Error:", errorDetail);
-
-        throw new Error(`Identification failed. Pl@ntNet API error: ${errorDetail}`);
-    }
-
-    const prompt = `Generate a detailed analysis for the species "${scientificName}" and provide the result using the requested JSON schema. For fields like healthStatus, diseaseType, and recommendedAction, provide the most common and likely response for a typical healthy ${scientificName} plant. Ensure the 'species' field exactly matches the scientific name provided here.`;
-
-    try {
-        const response = await (ai.models.generateContent as any)({
-            model: "gemini-2.5-flash",
-            contents: [{ parts: [{ text: prompt }] }],
-            generationConfig: {
-                responseMimeType: "application/json",
-                responseSchema: {
-                    type: "OBJECT",
-                    properties: {
-                        "species": { "type": "STRING", "description": "The scientific name of the plant, e.g., Aloe vera." },
-                        "commonName": { "type": "STRING", "description": "The common, easy-to-read name." },
-                        "family": { "type": "STRING", "description": "The plant's botanical family." },
-                        "healthStatus": { "type": "STRING", "description": "The generalized health status (e.g., Healthy, Needs Water, Common Pests)." },
-                        "diseaseType": { "type": "STRING", "nullable": true, "description": "The likely disease or null if healthy." },
-                        "careTips": {
-                            "type": "OBJECT",
-                            "properties": {
-                                "waterFrequency": { "type": "STRING" },
-                                "sunlight": { "type": "STRING" },
-                                "soil": { "type": "STRING" },
-                                "fertilizer": { "type": "STRING" },
-                                "humidity": { "type": "STRING" },
-                                "growthStage": { "type": "STRING" },
-                                "seasonalTips": { "type": "STRING" }
-                            }
-                        },
-                        "medicinalBenefits": { "type": "ARRAY", "items": { "type": "STRING" } },
-                        "edibleParts": { "type": "ARRAY", "items": { "type": "STRING" } },
-                        "toxicity": { "type": "STRING" },
-                        "culturalUse": { "type": "STRING" },
-                        "ecologicalRole": { "type": "STRING" },
-                        "recommendedAction": { "type": "STRING", "description": "A single, actionable tip for the owner." }
-                    }
-                }
+        const response = await axios.post(`${API_BASE_URL}/api/identify`, formData, {
+            headers: {
+                'Content-Type': 'multipart/form-data',
             },
-        } as any);
-        const jsonText = response.text;
+            timeout: 30000,
+        });
 
-        if (jsonText) {
-            careData = JSON.parse(jsonText);
-        } else {
-            throw new Error("Gemini API returned an invalid response.");
-        }
-
+        return response.data;
     } catch (error) {
-        console.error("Gemini API Error:", error);
+        console.error('Plant identification error:', error);
+        const errorMessage = isAxiosError(error) 
+            ? error.response?.data?.error || error.message 
+            : (error as Error).message;
+        throw new Error(errorMessage);
+    }
+}
+
+export async function savePlantRecord(result: PlantIdentificationResult, imageUri: string, source: 'camera' | 'gallery' = 'camera'): Promise<string> {
+    const auth = getAuth();
+    let userId = auth.currentUser?.uid;
+    
+    // Use a persistent guest user ID if not authenticated
+    if (!userId) {
+        // Create a device-specific persistent ID
+        const deviceId = await getDeviceId();
+        userId = `guest-${deviceId}`;
+        console.log('Using persistent guest user:', userId);
     }
 
-    const db = getFirestore();
-    const analysisId = crypto.randomUUID();
-
-    const finalDocument = {
-        ...careData,
-        species: careData?.species || scientificName,
-        imageUrl: metadata.imageUrl,
-        uploadedAt: metadata.uploadedAt,
-        geolocation: metadata.geolocation,
-        userId: userId,
-        status: careData ? 'COMPLETED' : 'PARTIAL_AI_FAILED',
-        createdAt: serverTimestamp(),
-        analysisId: analysisId
+    const plantRecord: Omit<PlantRecord, 'id'> = {
+        scientific_name: result.ai.scientific_name || result.plantnet.scientific_name,
+        common_names: result.ai.common_names || result.plantnet.common_names || [],
+        family: result.ai.family || result.plantnet.family,
+        category: result.ai.category || 'Unknown',
+        description: result.ai.short_description || '',
+        care_instructions: {
+            watering: result.ai.care?.watering || '',
+            sunlight: result.ai.care?.sunlight || '',
+            soil: result.ai.care?.soil || '',
+            temperature: result.ai.care?.temperature || '',
+            fertilizer: result.ai.care?.fertilizer || '',
+            pruning: result.ai.care?.pruning || ''
+        },
+        health_info: {
+            pests_and_diseases: result.ai.pests_and_diseases || '',
+            typical_issues: result.ai.typical_health_issues || '',
+            recommended_action: result.ai.recommended_action || ''
+        },
+        additional_info: {
+            medicinal_use: result.ai.medicinal_use || '',
+            pet_friendly: result.ai.pet_friendly || ''
+        },
+        identification_data: {
+            confidence_score: result.plantnet.score || 0,
+            source,
+            identified_at: serverTimestamp()
+        },
+        media: {
+            primary_image: imageUri
+        },
+        is_favorite: false,
+        tags: [],
+        created_at: serverTimestamp(),
+        updated_at: serverTimestamp(),
+        user_id: userId!
     };
 
     try {
-        const collectionPath = `artifacts/${appId}/users/${userId}/plant_analyses`;
-
-        const docRef = await addDoc(collection(db, collectionPath), finalDocument);
-
-        console.log("Analysis saved to Firestore with ID:", docRef.id);
-
-        return {
-            ...finalDocument,
-            id: docRef.id
-        };
-
+        const docRef = await addDoc(collection(db, 'plants'), plantRecord);
+        
+        // Only increment count for real authenticated users
+        if (auth.currentUser) {
+            try {
+                await incrementPlantCount(userId!);
+            } catch (error) {
+                console.log('Could not increment plant count:', error);
+            }
+        }
+        
+        console.log('Plant saved with ID:', docRef.id);
+        return docRef.id;
     } catch (error) {
-        console.error("Firestore Save Error:", error);
-        throw new Error("Analysis failed to save to database.");
+        console.error('Error saving plant record:', error);
+        throw new Error('Failed to save plant record');
     }
 }
+
+export async function getUserPlants(userId?: string): Promise<PlantRecord[]> {
+    const auth = getAuth();
+    let currentUserId = userId || auth.currentUser?.uid;
+    
+    // Use persistent guest user ID if not authenticated
+    if (!currentUserId) {
+        const deviceId = await getDeviceId();
+        currentUserId = `guest-${deviceId}`;
+    }
+    
+    try {
+        const q = query(
+            collection(db, 'plants'),
+            where('user_id', '==', currentUserId),
+            orderBy('created_at', 'desc'),
+            limit(100)
+        );
+        
+        const querySnapshot = await getDocs(q);
+        const plants = querySnapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+        })) as PlantRecord[];
+        
+        return plants;
+    } catch (error) {
+        console.error('Error fetching user plants:', error);
+        // Return empty array instead of throwing error
+        return [];
+    }
+}
+
+export async function getPlantById(plantId: string): Promise<PlantRecord | null> {
+    try {
+        const docRef = doc(db, 'plants', plantId);
+        const docSnap = await getDoc(docRef);
+        
+        if (docSnap.exists()) {
+            return { id: docSnap.id, ...docSnap.data() } as PlantRecord;
+        }
+        return null;
+    } catch (error) {
+        console.error('Error fetching plant:', error);
+        throw error;
+    }
+}
+
+export async function updatePlantRecord(plantId: string, updates: Partial<PlantRecord>): Promise<void> {
+    try {
+        await updateDoc(doc(db, 'plants', plantId), {
+            ...updates,
+            updated_at: serverTimestamp()
+        });
+    } catch (error) {
+        console.error('Error updating plant:', error);
+        throw error;
+    }
+}
+
+export async function deletePlantRecord(plantId: string): Promise<void> {
+    try {
+        await deleteDoc(doc(db, 'plants', plantId));
+    } catch (error) {
+        console.error('Error deleting plant:', error);
+        throw error;
+    }
+}
+
+export async function toggleFavorite(plantId: string, isFavorite: boolean): Promise<void> {
+    try {
+        await updateDoc(doc(db, 'plants', plantId), {
+            is_favorite: isFavorite,
+            updated_at: serverTimestamp()
+        });
+    } catch (error) {
+        console.error('Error toggling favorite:', error);
+        throw error;
+    }
+}
+
+export async function addPlantNote(plantId: string, note: string): Promise<void> {
+    try {
+        await updateDoc(doc(db, 'plants', plantId), {
+            user_notes: note,
+            updated_at: serverTimestamp()
+        });
+    } catch (error) {
+        console.error('Error adding note:', error);
+        throw error;
+    }
+}
+
+export async function addPlantTags(plantId: string, tags: string[]): Promise<void> {
+    try {
+        await updateDoc(doc(db, 'plants', plantId), {
+            tags,
+            updated_at : serverTimestamp()
+        });
+    } catch (error) {
+        console.error('Error adding tags:', error);
+        throw error;
+    }
+}
+
+export async function identifyPlantByName(name: string): Promise<PlantIdentificationResult> {
+    try {
+        const response = await axios.get(`${API_BASE_URL}/api/identify`, {
+            params: { name },
+            timeout: 30000,
+        });
+        return response.data;
+    } catch (error) {
+        const errorMessage = isAxiosError(error) 
+            ? error.response?.data?.error || error.message 
+            : (error as Error).message;
+        throw new Error(errorMessage);
+    }
+}
+
+export async function getLocationRecommendations(latitude: number, longitude: number, address?: string) {
+    try {
+        const response = await axios.post(`${API_BASE_URL}/api/recommend`, {
+            latitude,
+            longitude,
+            address,
+        }, {
+            timeout: 30000,
+        });
+        return response.data;
+    } catch (error) {
+        const errorMessage = isAxiosError(error) 
+            ? error.response?.data?.error || error.message 
+            : (error as Error).message;
+        throw new Error(errorMessage);
+    }
+}
+
+// Legacy function for backward compatibility
+export const getPlantHistory = getUserPlants;
+export const saveToHistory = savePlantRecord;

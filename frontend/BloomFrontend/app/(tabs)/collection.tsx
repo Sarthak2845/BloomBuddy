@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -9,91 +9,94 @@ import {
   TextInput,
   StatusBar,
   Dimensions,
+  Alert,
+  RefreshControl,
 } from 'react-native';
 import { MotiView } from 'moti';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import Colors from '../../constants/Colors';
+import { getUserPlants, PlantRecord } from '@/lib/services/plantService';
+import Loading from '@/components/Loading';
+import { getAuth, signInAnonymously } from 'firebase/auth';
+import { useRouter } from 'expo-router';
 
 const { width } = Dimensions.get('window');
 
-interface PlantItem {
-  id: string;
-  name: string;
-  scientific: string;
-  family: string;
-  dateAdded: string;
-  image: string;
-  difficulty: 'Easy' | 'Medium' | 'Hard';
-}
 
-const mockPlants: PlantItem[] = [
-  {
-    id: '1',
-    name: 'Monstera Deliciosa',
-    scientific: 'Monstera deliciosa',
-    family: 'Araceae',
-    dateAdded: '2024-01-15',
-    image: 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=400',
-    difficulty: 'Easy',
-  },
-  {
-    id: '2',
-    name: 'Fiddle Leaf Fig',
-    scientific: 'Ficus lyrata',
-    family: 'Moraceae',
-    dateAdded: '2024-01-10',
-    image: 'https://images.unsplash.com/photo-1463320726281-696a485928c7?w=400',
-    difficulty: 'Hard',
-  },
-  {
-    id: '3',
-    name: 'Snake Plant',
-    scientific: 'Sansevieria trifasciata',
-    family: 'Asparagaceae',
-    dateAdded: '2024-01-08',
-    image: 'https://images.unsplash.com/photo-1593691509543-c55fb32d8de5?w=400',
-    difficulty: 'Easy',
-  },
-  {
-    id: '4',
-    name: 'Peace Lily',
-    scientific: 'Spathiphyllum wallisii',
-    family: 'Araceae',
-    dateAdded: '2024-01-05',
-    image: 'https://images.unsplash.com/photo-1416879595882-3373a0480b5b?w=400',
-    difficulty: 'Medium',
-  },
-];
 
 export default function CollectionScreen() {
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedFilter, setSelectedFilter] = useState<'All' | 'Easy' | 'Medium' | 'Hard'>('All');
+  const [selectedFilter, setSelectedFilter] = useState<'All' | 'High' | 'Medium' | 'Low'>('All');
+  const [plants, setPlants] = useState<PlantRecord[]>([]);
+  const router = useRouter();
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
-  const filteredPlants = mockPlants.filter(plant => {
-    const matchesSearch = plant.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         plant.scientific.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesFilter = selectedFilter === 'All' || plant.difficulty === selectedFilter;
+  const loadPlants = async () => {
+    try {
+      const userPlants = await getUserPlants();
+      setPlants(userPlants);
+    } catch (error) {
+      console.error('Error loading plants:', error);
+      setPlants([]);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  };
+
+  useEffect(() => {
+    loadPlants();
+  }, []);
+
+  const onRefresh = () => {
+    setRefreshing(true);
+    loadPlants();
+  };
+
+  const getConfidenceLevel = (score: number) => {
+    if (score >= 0.7) return 'High';
+    if (score >= 0.4) return 'Medium';
+    return 'Low';
+  };
+
+  const handlePlantPress = (plant: PlantRecord) => {
+    router.push({
+      pathname: '/plant-detail',
+      params: { plantId: plant.id }
+    });
+  };
+
+  const filteredPlants = plants.filter(plant => {
+    const commonName = plant.common_names?.[0] || plant.scientific_name;
+    const matchesSearch = commonName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                         plant.scientific_name.toLowerCase().includes(searchQuery.toLowerCase());
+    const confidenceLevel = getConfidenceLevel(plant.identification_data.confidence_score);
+    const matchesFilter = selectedFilter === 'All' || confidenceLevel === selectedFilter;
     return matchesSearch && matchesFilter;
   });
 
-  const getDifficultyColor = (difficulty: string) => {
-    switch (difficulty) {
-      case 'Easy': return Colors.success;
-      case 'Medium': return Colors.warning;
-      case 'Hard': return Colors.error;
-      default: return Colors.gray;
-    }
+  const getConfidenceColor = (score: number) => {
+    if (score >= 0.7) return Colors.success;
+    if (score >= 0.4) return Colors.warning;
+    return Colors.error;
   };
 
-  const getDifficultyIcon = (difficulty: string) => {
-    switch (difficulty) {
-      case 'Easy': return '🟢';
-      case 'Medium': return '🟡';
-      case 'Hard': return '🔴';
-      default: return '⚪';
-    }
+  const getConfidenceIcon = (score: number) => {
+    if (score >= 0.7) return '🟢';
+    if (score >= 0.4) return '🟡';
+    return '🔴';
   };
+
+  if (loading) {
+    return (
+      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+        <Loading />
+        <Text style={styles.loadingText}>Loading your collection...</Text>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -110,11 +113,22 @@ export default function CollectionScreen() {
           transition={{ type: 'timing', duration: 600 }}
         >
           <Text style={styles.headerTitle}>My Plant Collection</Text>
-          <Text style={styles.headerSubtitle}>{mockPlants.length} plants identified</Text>
+          <Text style={styles.headerSubtitle}>{plants.length} plants identified</Text>
         </MotiView>
       </LinearGradient>
 
-      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+      <ScrollView 
+        style={styles.scrollView} 
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={[Colors.primary]}
+            tintColor={Colors.primary}
+          />
+        }
+      >
         {/* Search and Filter */}
         <MotiView
           from={{ opacity: 0, scale: 0.9 }}
@@ -138,7 +152,7 @@ export default function CollectionScreen() {
             showsHorizontalScrollIndicator={false}
             style={styles.filterContainer}
           >
-            {['All', 'Easy', 'Medium', 'Hard'].map((filter) => (
+            {['All', 'High', 'Medium', 'Low'].map((filter) => (
               <TouchableOpacity
                 key={filter}
                 style={[
@@ -176,8 +190,8 @@ export default function CollectionScreen() {
               colors={[Colors.success, '#20C997']}
               style={styles.statGradient}
             >
-              <Text style={styles.statNumber}>{mockPlants.filter(p => p.difficulty === 'Easy').length}</Text>
-              <Text style={styles.statLabel}>Easy Care</Text>
+              <Text style={styles.statNumber}>{plants.filter(p => getConfidenceLevel(p.identification_data.confidence_score) === 'High').length}</Text>
+              <Text style={styles.statLabel}>High Confidence</Text>
             </LinearGradient>
           </View>
           
@@ -186,8 +200,8 @@ export default function CollectionScreen() {
               colors={[Colors.warning, '#FFB347']}
               style={styles.statGradient}
             >
-              <Text style={styles.statNumber}>{mockPlants.filter(p => p.difficulty === 'Medium').length}</Text>
-              <Text style={styles.statLabel}>Medium Care</Text>
+              <Text style={styles.statNumber}>{plants.filter(p => getConfidenceLevel(p.identification_data.confidence_score) === 'Medium').length}</Text>
+              <Text style={styles.statLabel}>Medium Confidence</Text>
             </LinearGradient>
           </View>
           
@@ -196,8 +210,8 @@ export default function CollectionScreen() {
               colors={[Colors.error, '#FF6B6B']}
               style={styles.statGradient}
             >
-              <Text style={styles.statNumber}>{mockPlants.filter(p => p.difficulty === 'Hard').length}</Text>
-              <Text style={styles.statLabel}>Hard Care</Text>
+              <Text style={styles.statNumber}>{plants.filter(p => getConfidenceLevel(p.identification_data.confidence_score) === 'Low').length}</Text>
+              <Text style={styles.statLabel}>Low Confidence</Text>
             </LinearGradient>
           </View>
         </MotiView>
@@ -216,29 +230,46 @@ export default function CollectionScreen() {
               }}
               style={styles.plantCard}
             >
-              <TouchableOpacity activeOpacity={0.8}>
+              <TouchableOpacity activeOpacity={0.8} onPress={() => handlePlantPress(plant)}>
                 <View style={styles.plantImageContainer}>
-                  <Image source={{ uri: plant.image }} style={styles.plantImage} />
+                  <Image source={{ uri: plant.media.primary_image }} style={styles.plantImage} />
                   <LinearGradient
                     colors={['transparent', 'rgba(0,0,0,0.7)']}
                     style={styles.plantImageOverlay}
                   />
                   <View style={styles.difficultyBadge}>
-                    <Text style={styles.difficultyEmoji}>{getDifficultyIcon(plant.difficulty)}</Text>
+                    <Text style={styles.difficultyEmoji}>{getConfidenceIcon(plant.identification_data.confidence_score)}</Text>
                   </View>
+                  {plant.is_favorite && (
+                    <View style={styles.favoriteIcon}>
+                      <Ionicons name="heart" size={16} color={Colors.error} />
+                    </View>
+                  )}
                 </View>
                 
                 <View style={styles.plantInfo}>
-                  <Text style={styles.plantName} numberOfLines={1}>{plant.name}</Text>
-                  <Text style={styles.plantScientific} numberOfLines={1}>{plant.scientific}</Text>
+                  <Text style={styles.plantName} numberOfLines={1}>
+                    {plant.common_names?.[0] || plant.scientific_name}
+                  </Text>
+                  <Text style={styles.plantScientific} numberOfLines={1}>{plant.scientific_name}</Text>
                   <Text style={styles.plantFamily}>{plant.family}</Text>
                   
                   <View style={styles.plantMeta}>
-                    <Ionicons name="calendar-outline" size={12} color={Colors.textLight} />
+                    <Ionicons name="analytics-outline" size={12} color={Colors.textLight} />
                     <Text style={styles.plantDate}>
-                      {new Date(plant.dateAdded).toLocaleDateString()}
+                      {Math.round(plant.identification_data.confidence_score * 100)}% confidence
                     </Text>
                   </View>
+                  
+                  {plant.tags.length > 0 && (
+                    <View style={styles.tagsContainer}>
+                      {plant.tags.slice(0, 2).map((tag, tagIndex) => (
+                        <View key={tagIndex} style={styles.tag}>
+                          <Text style={styles.tagText}>{tag}</Text>
+                        </View>
+                      ))}
+                    </View>
+                  )}
                 </View>
               </TouchableOpacity>
             </MotiView>
@@ -474,5 +505,37 @@ const styles = StyleSheet.create({
   },
   bottomPadding: {
     height: 120,
+  },
+  loadingText: {
+    fontSize: 16,
+    color: Colors.textSecondary,
+    marginTop: 16,
+  },
+  favoriteIcon: {
+    position: 'absolute',
+    top: 8,
+    left: 8,
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    borderRadius: 12,
+    width: 24,
+    height: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  tagsContainer: {
+    flexDirection: 'row',
+    marginTop: 4,
+    gap: 4,
+  },
+  tag: {
+    backgroundColor: Colors.primaryLight,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 8,
+  },
+  tagText: {
+    fontSize: 10,
+    color: Colors.primary,
+    fontWeight: '600',
   },
 });
