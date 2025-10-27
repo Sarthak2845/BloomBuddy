@@ -253,7 +253,7 @@ export default function ProfileScreen() {
         }
       >
         <LinearGradient
-          colors={[theme.primary, theme.primaryLight, theme.secondary]}
+          colors={['#56ab2f','#a8e063']}
           style={styles.header}
         >
           <MotiView
@@ -263,15 +263,11 @@ export default function ProfileScreen() {
             style={styles.profileSection}
           >
             <View style={styles.avatarContainer}>
-              <LinearGradient
-                colors={[theme.accent, theme.accentLight]}
-                style={styles.avatarGradient}
-              >
                 <Image
                   source={{ uri: userProfile?.photoURL || generateProfilePicture(userProfile?.displayName || 'User') }}
                   style={styles.avatar}
                 />
-              </LinearGradient>
+
               <TouchableOpacity style={styles.editAvatarButton}>
                 <Ionicons name="camera" size={16} color={theme.white} />
               </TouchableOpacity>
@@ -433,10 +429,6 @@ const createStyles = (theme: any) => StyleSheet.create({
     position: 'relative',
     marginBottom: 16,
   },
-  avatarGradient: {
-    padding: 4,
-    borderRadius: 60,
-  },
   avatar: {
     width: 100,
     height: 100,
@@ -473,7 +465,7 @@ const createStyles = (theme: any) => StyleSheet.create({
   },
   statsSection: {
     paddingHorizontal: 20,
-    marginTop: -20,
+    marginTop: 20,
     zIndex: 2,
   },
   sectionTitle: {

@@ -91,32 +91,40 @@ const createStyles = (theme: any) => StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
   },
-  statsContainer: {
-    flexDirection: 'row',
-    paddingHorizontal: 20,
-    marginBottom: 20,
-    gap: 12,
-  },
-  statCard: {
-    flex: 1,
-    borderRadius: 16,
-    overflow: 'hidden',
-  },
-  statGradient: {
-    padding: 16,
-    alignItems: 'center',
-  },
-  statNumber: {
-    fontSize: 24,
-    fontWeight: '800',
-    color: theme.white,
-    marginBottom: 4,
-  },
-  statLabel: {
-    fontSize: 12,
-    color: 'rgba(255, 255, 255, 0.9)',
-    fontWeight: '600',
-  },
+statsContainer: {
+  flexDirection: 'row',
+  justifyContent: 'space-between',
+  paddingHorizontal: 20,
+  marginBottom: 20,
+},
+statCard: {
+  flex: 1,
+  borderRadius: 16,
+  overflow: 'hidden',
+  height: 100, // ✅ fixed equal height for all cards
+  marginHorizontal: 4, // spacing between cards
+},
+statGradient: {
+  flex: 1,
+  alignItems: 'center',
+  justifyContent: 'center',
+  paddingVertical: 10,
+  paddingHorizontal: 8,
+},
+statNumber: {
+  fontSize: 26,
+  fontWeight: '800',
+  color: '#fff',
+  marginBottom: 4,
+  textAlign: 'center',
+},
+statLabel: {
+  fontSize: 13,
+  fontWeight: '600',
+  color: 'rgba(255,255,255,0.9)',
+  textAlign: 'center',
+},
+
   plantsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
