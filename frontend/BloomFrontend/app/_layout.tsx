@@ -4,6 +4,7 @@ import { onAuthStateChanged, User } from 'firebase/auth';
 import { auth } from '../lib/firebase/config';
 import Loading from '../components/Loading';
 import { View } from 'react-native';
+import { StatusBar } from 'expo-status-bar';
 import { ThemeProvider } from '../contexts/ThemeContext';
 
 export default function RootLayout() {
@@ -48,10 +49,11 @@ export default function RootLayout() {
 
   return (
     <ThemeProvider>
+      <StatusBar style="auto" />
       <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="index" />
         <Stack.Screen name="auth" />
-        <Stack.Screen name="(tabs)" />
+        <Stack.Screen name="(tabs)" options={{ contentStyle: { paddingBottom: 0 } }} />
         <Stack.Screen name="recommendations" />
         <Stack.Screen name="reminders" />
         <Stack.Screen name="plant-detail" />

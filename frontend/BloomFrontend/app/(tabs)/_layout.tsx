@@ -1,8 +1,23 @@
 import React from 'react';
 import { Tabs } from 'expo-router';
-import { View, StyleSheet } from 'react-native';
+import { View, StyleSheet, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import Colors from '../../constants/Colors';
+
+function TabBarIcon({ name, color, focused, size = 26 }: {
+  name: keyof typeof Ionicons.glyphMap;
+  color: string;
+  focused: boolean;
+  size?: number;
+}) {
+  return (
+    <View style={[styles.iconContainer, focused && styles.activeIconContainer]}>
+      <Ionicons name={name} size={size} color={color} />
+      {focused && <View style={styles.activeIndicator} />}
+    </View>
+  );
+}
 
 export default function TabLayout() {
   return (
@@ -10,22 +25,29 @@ export default function TabLayout() {
       screenOptions={{
         headerShown: false,
         tabBarStyle: {
-          height: 60,
-          backgroundColor: '#fff',
-          borderTopWidth: 1,
-          borderTopColor: 'rgba(0,0,0,0.1)',
-          elevation: 8, // shadow on Android
-          
+          height: Platform.OS === 'ios' ? 85 : 70,
+          backgroundColor: '#ffffff',
+          borderTopWidth: 0,
+          elevation: 20,
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: -4 },
+          shadowOpacity: 0.1,
+          shadowRadius: 12,
+          paddingTop: 8,
+          paddingBottom: Platform.OS === 'ios' ? 25 : 8,
+          borderTopLeftRadius: 24,
+          borderTopRightRadius: 24,
+          position: 'absolute',
         },
         tabBarActiveTintColor: Colors.primary,
-        tabBarInactiveTintColor: Colors.textLight,
+        tabBarInactiveTintColor: '#8E8E93',
         tabBarLabelStyle: {
-          fontSize: 12,
+          fontSize: 11,
           fontWeight: '600',
           marginTop: 4,
         },
-        tabBarIconStyle: {
-          marginTop: 6,
+        tabBarItemStyle: {
+          paddingVertical: 4,
         },
       }}
     >
@@ -34,10 +56,10 @@ export default function TabLayout() {
         options={{
           title: 'Identify',
           tabBarIcon: ({ color, focused }) => (
-            <Ionicons
-              name={focused ? 'camera' : 'camera-outline'}
-              size={24}
+            <TabBarIcon
+              name={focused ? 'scan' : 'scan-outline'}
               color={color}
+              focused={focused}
             />
           ),
         }}
@@ -47,10 +69,10 @@ export default function TabLayout() {
         options={{
           title: 'Results',
           tabBarIcon: ({ color, focused }) => (
-            <Ionicons
+            <TabBarIcon
               name={focused ? 'leaf' : 'leaf-outline'}
-              size={24}
               color={color}
+              focused={focused}
             />
           ),
         }}
@@ -60,10 +82,10 @@ export default function TabLayout() {
         options={{
           title: 'Collection',
           tabBarIcon: ({ color, focused }) => (
-            <Ionicons
-              name={focused ? 'library' : 'library-outline'}
-              size={24}
+            <TabBarIcon
+              name={focused ? 'albums' : 'albums-outline'}
               color={color}
+              focused={focused}
             />
           ),
         }}
@@ -73,10 +95,10 @@ export default function TabLayout() {
         options={{
           title: 'Profile',
           tabBarIcon: ({ color, focused }) => (
-            <Ionicons
-              name={focused ? 'person' : 'person-outline'}
-              size={24}
+            <TabBarIcon
+              name={focused ? 'person-circle' : 'person-circle-outline'}
               color={color}
+              focused={focused}
             />
           ),
         }}
@@ -86,8 +108,23 @@ export default function TabLayout() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fff',
+  iconContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+  },
+  activeIconContainer: {
+    backgroundColor: 'rgba(76, 175, 80, 0.1)',
+    transform: [{ scale: 1.1 }],
+  },
+  activeIndicator: {
+    position: 'absolute',
+    bottom: -8,
+    width: 4,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: Colors.primary,
   },
 });
