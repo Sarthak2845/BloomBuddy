@@ -92,7 +92,7 @@ A powerful and reliable stack engineered for scale and speed:
 ### 1. Clone the Repository
 
 ```bash
-git clone [https://github.com/yourusername/BloomBuddy.git](https://github.com/yourusername/BloomBuddy.git)
+git clone [https://github.com/Sarthak2845/BloomBuddy.git](https://github.com/Sarthak2845/BloomBuddy.git)
 cd BloomBuddy/frontend/BloomFrontend
 ````
 
